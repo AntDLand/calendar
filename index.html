@@ -366,6 +366,58 @@
   .pdots-w{position:absolute;left:0;right:0;bottom:7px;display:flex;justify-content:center;gap:4px;pointer-events:none}
   .pdots-w i{width:5px;height:5px;border-radius:5px;background:rgba(255,255,255,.55);box-shadow:0 0 2px rgba(0,0,0,.5);transition:width .2s}
   .pdots-w i.on{width:12px;background:#fff}
+  .motw{height:100%;position:relative;border-radius:var(--radius);overflow:hidden;background:#000;cursor:pointer}
+  .motw video{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
+  .mv-snd{position:absolute;left:8px;bottom:8px;width:34px;height:34px;border-radius:50%;border:none;background:rgba(0,0,0,.55);color:#fff;font-size:16px;display:grid;place-items:center;cursor:pointer;z-index:2}
+  .w.w1 .mv-snd{width:28px;height:28px;font-size:13px;left:auto;right:5px;bottom:5px}
+  .editing .mv-snd{display:none}
+  .mv-wave:not(.live) i{animation-play-state:paused}
+  .mv-badge{position:absolute;right:8px;bottom:8px;background:rgba(0,0,0,.55);color:#fff;font:800 12px ManropeLocal,Manrope,sans-serif;padding:4px 8px;border-radius:10px}
+  .motw.empty{background:linear-gradient(135deg,#ff7a1a,#e5484d);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#fff;padding:10px;gap:4px}
+  .motw.empty b{font-size:28px}
+  .motw.empty span{font:800 15px ManropeLocal,Manrope,sans-serif;line-height:1.2}
+  .motw.empty small{font-weight:700;font-size:12px;opacity:.85}
+  .motiv{position:fixed;inset:0;z-index:62;background:#000;display:none}
+  .motiv.open{display:block}
+  .fd-list{position:absolute;inset:0;overflow-y:auto;scroll-snap-type:y mandatory;overscroll-behavior:contain;scrollbar-width:none}
+  .fd-list::-webkit-scrollbar{display:none}
+  .fd-slide{position:relative;height:100%;scroll-snap-align:start;scroll-snap-stop:always;overflow:hidden;background:#000;display:flex;align-items:center;justify-content:center}
+  .fd-slide video{width:100%;height:100%;object-fit:contain}
+  .fd-cap{position:absolute;left:16px;right:70px;bottom:calc(env(safe-area-inset-bottom) + 34px);color:#fff;font:800 16px ManropeLocal,Manrope,sans-serif;text-shadow:0 1px 4px rgba(0,0,0,.7);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .fd-bar{position:absolute;left:16px;right:16px;bottom:calc(env(safe-area-inset-bottom) + 20px);height:3px;border-radius:3px;background:rgba(255,255,255,.25);overflow:hidden}
+  .fd-bar i{display:block;height:100%;width:0;background:#fff}
+  .fd-paused{position:absolute;inset:0;display:none;place-items:center;font-size:64px;color:rgba(255,255,255,.85);pointer-events:none}
+  .fd-slide.paused .fd-paused{display:grid}
+  .fd-slide.song{flex-direction:column;gap:26px}
+  .fd-disc{width:150px;height:150px;border-radius:50%;background:rgba(0,0,0,.25);display:grid;place-items:center;font-size:64px;box-shadow:0 10px 40px rgba(0,0,0,.3)}
+  .fd-slide.song.on:not(.paused) .fd-disc{animation:fdspin 6s linear infinite}
+  @keyframes fdspin{to{transform:rotate(360deg)}}
+  .fd-wave{display:flex;gap:6px;align-items:flex-end;height:46px}
+  .fd-wave i{width:8px;height:20%;background:rgba(255,255,255,.85);border-radius:4px}
+  .fd-slide.song.on:not(.paused) .fd-wave i{animation:fdwave .9s ease-in-out infinite alternate}
+  .fd-wave i:nth-child(2){animation-delay:.15s !important}.fd-wave i:nth-child(3){animation-delay:.3s !important}.fd-wave i:nth-child(4){animation-delay:.45s !important}.fd-wave i:nth-child(5){animation-delay:.1s !important}.fd-wave i:nth-child(6){animation-delay:.35s !important}.fd-wave i:nth-child(7){animation-delay:.2s !important}
+  @keyframes fdwave{from{height:15%}to{height:100%}}
+  .fd-hint{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom) + 60px);text-align:center;color:rgba(255,255,255,.7);font:700 12px ManropeLocal,Manrope,sans-serif;pointer-events:none;animation:fdhint 3s ease forwards}
+  @keyframes fdhint{0%,70%{opacity:1}100%{opacity:0}}
+  .mp-edit{position:absolute;right:14px;top:calc(env(safe-area-inset-top) + 80px);width:42px;height:42px;border-radius:50%;border:none;background:rgba(255,255,255,.18);color:#fff;font-size:18px;font-weight:800;cursor:pointer}
+  .motw.songs{background:linear-gradient(160deg,#8b5cf6,#3e8bff);display:grid;place-items:center}
+  .mv-wave{display:flex;gap:4px;align-items:flex-end;height:40%}
+  .mv-wave i{width:6px;background:rgba(255,255,255,.85);border-radius:3px;animation:fdwave .9s ease-in-out infinite alternate}
+  .mv-wave i:nth-child(2){animation-delay:.2s}.mv-wave i:nth-child(3){animation-delay:.4s}.mv-wave i:nth-child(4){animation-delay:.1s}.mv-wave i:nth-child(5){animation-delay:.3s}
+  .mc-item{display:flex;align-items:center;gap:10px;padding:10px;border-radius:14px;background:var(--card2);margin-bottom:6px;cursor:pointer}
+  .mc-item.on{box-shadow:inset 0 0 0 2px var(--accent)}
+  .mc-ic{font-size:20px}
+  .mc-nm{flex:1;min-width:0;display:flex;flex-direction:column}
+  .mc-nm b{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mc-nm small{font-size:12px;color:var(--muted);font-weight:700}
+  .mc-item button{flex:none;width:32px;height:32px;border-radius:50%;border:none;background:var(--card);color:var(--text);font-weight:800;cursor:pointer}
+  .mc-edit{background:var(--card2);border-radius:16px;padding:12px;margin-top:4px}
+  .mc-edit>b{display:block;font-size:14px;margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mc-edit .sgtime{align-items:center}
+  .mc-play{border:none;background:var(--accent);color:var(--accent-ink);border-radius:12px;padding:9px 14px;font:800 13px ManropeLocal,Manrope,sans-serif;cursor:pointer}
+  #mcRange{width:100%;accent-color:var(--accent);height:28px}
+  .mp-close{position:absolute;right:14px;top:calc(env(safe-area-inset-top) + 28px);width:42px;height:42px;border-radius:50%;border:none;background:rgba(255,255,255,.18);color:#fff;font-size:18px;font-weight:800;cursor:pointer}
+  .mc-prev{width:100%;max-height:180px;border-radius:14px;background:#000;display:block;margin-bottom:6px}
   .sgfile{display:flex;align-items:center;gap:10px;background:var(--card2);border-radius:14px;padding:8px 8px 8px 12px;margin:6px 0 10px}
   .sgfile span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px;color:var(--muted)}
   .sgfile b{color:var(--text)}
@@ -797,6 +849,26 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
   <button class="ghost" id="tmClose">Закрыть</button>
 </div>
 
+<div class="sheet" id="motivSheet">
+  <div class="grab"></div>
+  <h3>🔥 Мотивация</h3>
+  <div class="sub">Твои видео и песни — листаешь как ленту. Нажми на любое, чтобы выбрать кусок.</div>
+  <div class="phadd"><button id="mcAddV">＋ Видео</button><button id="mcAddM">＋ Песни</button></div>
+  <input type="file" id="mcVIn" accept="video/*" multiple hidden>
+  <input type="file" id="mcMIn" accept="audio/*,.mp3,.m4a,.aac,.ogg,.wav,.opus" multiple hidden>
+  <div id="mcList" style="margin-top:12px"></div>
+  <div id="mcEdit" class="mc-edit" hidden>
+    <b id="mcEName"></b>
+    <video id="mcPrev" class="mc-prev" playsinline preload="metadata"></video>
+    <div class="sgtime"><b id="mcETime">0:00</b><button id="mcPlayOne" class="mc-play">▶ Прослушать</button></div>
+    <input type="range" id="mcRange" min="0" max="0" step="1" value="0" aria-label="Начало куска">
+    <div class="glacts" id="mcLen" style="margin-top:8px"></div>
+  </div>
+  <button class="toggle" id="mcShuffle" style="margin-top:12px"><span class="si" style="font-size:22px">🔀</span><span><b>Случайный порядок</b><small>Каждый раз лента перемешивается</small></span><span class="sw2"></span></button>
+  <button class="primary" id="mcWatch">▶ Смотреть ленту</button>
+  <button class="ghost" id="mcDone">Готово</button>
+</div>
+
 <div class="sheet" id="songSheet">
   <div class="grab"></div>
   <h3>🎵 Момент песни</h3>
@@ -947,6 +1019,12 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
   <div class="zhint">Нажми на день, чтобы отметить тренировку · свайп — другой месяц</div>
 </div>
 <div class="viewer" id="viewer"><img id="viewerImg" alt=""></div>
+<div class="motiv" id="motiv">
+  <div class="fd-list" id="fdList"></div>
+  <button class="mp-close" id="mpClose" aria-label="Закрыть">✕</button>
+  <button class="mp-edit" id="mpEdit" aria-label="Изменить список">✎</button>
+  <div class="fd-hint">Листай вверх ↑</div>
+</div>
 <div class="game stackg" id="stack">
   <canvas id="skCanvas"></canvas>
   <div class="g-top"><b id="skScore">0</b><span id="skBest"></span><button id="skClose" aria-label="Закрыть игру">✕</button></div>
@@ -988,6 +1066,7 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
     note:     {name:"Заметка",            def:[2,2], min:[1,1]},
     game:     {name:"Перебежка",          def:[2,2], min:[1,1]},
     stack:    {name:"Гриф",               def:[2,2], min:[1,1]},
+    motiv:    {name:"Мотивация",          def:[4,2], min:[1,1]},
   };
   const MAX_H = 12;
   // compact ("s") or full ("l") look depending on widget size
@@ -2274,12 +2353,13 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
     board.style.gridTemplateRows = `repeat(${rows}, var(--cell))`;
     board.innerHTML = slots + LAY().map(w => {
       w.size = modeOf(w);
-      const inner = {streak:wStreak, month:wCount, week:wCount, calendar:wCalendar, bars:wBars, photo:wPhoto, timer:wTimer, last:wLast, goal:wGoal, note:wNote, game:wGame, stack:wStack}[w.type](w);
+      const inner = {streak:wStreak, month:wCount, week:wCount, calendar:wCalendar, bars:wBars, photo:wPhoto, timer:wTimer, last:wLast, goal:wGoal, note:wNote, game:wGame, stack:wStack, motiv:wMotiv}[w.type](w);
       return `<div class="w ${w.size}${w.h===1?" h1":""}${w.w===1?" w1":""}${w.w===3?" w3":""} t-${w.type}${(w.type === "photo" ? photoCur(w).cut : w.cut) ? " cut" : ""}"${w.type === "photo" ? ` data-pi="${photoIdx(w)}"` : ""} data-w="${w.id}" style="grid-column:${w.x+1} / span ${w.w};grid-row:${w.y+1} / span ${w.h}">
         <div class="wi">${inner}</div>
         <div class="tools">
           ${w.type==="photo" ? `<button data-act="photos" aria-label="Фото в виджете">🖼</button>` : ""}
           ${w.type==="last" ? `<button data-act="lastcfg" aria-label="Что показывать">✎</button>` : ""}
+          ${w.type==="motiv" ? `<button data-act="motcfg" aria-label="Видео и музыка">✎</button>` : ""}
           ${w.type==="goal" ? `<button data-act="goal" aria-label="Настроить цель">🎯</button>` : ""}
           <button class="x" data-act="del" aria-label="Удалить">✕</button>
         </div>
@@ -2293,7 +2373,7 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
     const present = new Set(LAY().map(w => w.type));
     $("addRow").innerHTML = `<button class="chip big" data-add="photo">🖼 Фото из галереи</button><button class="chip big2" data-add="paste">🔗 Вставить картинку или ссылку</button>` +
       ["timer"].filter(t => !present.has(t)).map(t => `<button class="chip" data-add="${t}">⏱ ${BUILTIN[t].name}</button>`).join("") +
-      `<button class="chip" data-add="game">🎮 ${BUILTIN.game.name}</button><button class="chip" data-add="stack">🏋️ ${BUILTIN.stack.name}</button><button class="chip" data-add="note">✏️ ${BUILTIN.note.name}</button><button class="chip" data-add="last">📋 ${BUILTIN.last.name}</button><button class="chip" data-add="goal">🎯 ${BUILTIN.goal.name}</button>` +
+      `<button class="chip" data-add="motiv">🔥 ${BUILTIN.motiv.name}</button><button class="chip" data-add="game">🎮 ${BUILTIN.game.name}</button><button class="chip" data-add="stack">🏋️ ${BUILTIN.stack.name}</button><button class="chip" data-add="note">✏️ ${BUILTIN.note.name}</button><button class="chip" data-add="last">📋 ${BUILTIN.last.name}</button><button class="chip" data-add="goal">🎯 ${BUILTIN.goal.name}</button>` +
       ["calendar","streak","month","week","bars"].filter(t => !present.has(t)).map(t => `<button class="chip" data-add="${t}">+ ${BUILTIN[t].name}</button>`).join("");
 
     const pc = pageCount();
@@ -2314,7 +2394,7 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
     if (tab === "detail") renderDetail();
     renderZoom();
     if ($("timerSheet").classList.contains("open")) renderTmSheet();
-    fitLast(); watchLast();
+    fitLast(); watchLast(); motivLoops();
     glassSoon();
   }
 
@@ -2788,6 +2868,235 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
     } catch(e){ return false; }
   }
   const tmStopSong = () => { clearTimeout(tmStopT); if (tmAudio){ tmAudio.pause(); tmAudio = null; } };
+  // ---------- «Мотивация»: a TikTok-style feed of the user's own videos and song fragments ----------
+  // each clip: {id, k: "v"|"m", name, dur, s (start), l (length)}; the file sits in IndexedDB under "mi-<id>"
+  async function mediaPut(key, v){ const db = await songDB(); return new Promise((ok, no) => { const t = db.transaction("files", "readwrite"); t.objectStore("files").put(v, key); t.oncomplete = ok; t.onerror = () => no(t.error); }); }
+  async function mediaGet(key){ const db = await songDB(); return new Promise(ok => { const r = db.transaction("files").objectStore("files").get(key); r.onsuccess = () => ok(r.result || null); r.onerror = () => ok(null); }); }
+  async function mediaDel(key){ try { const db = await songDB(); db.transaction("files", "readwrite").objectStore("files").delete(key); } catch(e){} }
+  const MEDIA = {};                                   // key → {url} | "loading" | "none"
+  function mediaUrl(key){
+    const m = MEDIA[key];
+    if (m === undefined){
+      MEDIA[key] = "loading";
+      mediaGet(key).then(v => { MEDIA[key] = v && v.blob ? {url: URL.createObjectURL(v.blob)} : "none"; render(); if (FD.open) fdHydrate(); }).catch(() => { MEDIA[key] = "none"; });
+      return null;
+    }
+    return m && m.url ? m.url : null;
+  }
+  function mediaForget(key){ const m = MEDIA[key]; if (m && m.url) URL.revokeObjectURL(m.url); delete MEDIA[key]; }
+  const motItems = w => Array.isArray(w.items) ? w.items : [];
+  // older single-video version → move its files into the list once
+  async function motMigrate(w){
+    if (w.items || w.migrating) return; w.migrating = true;
+    const items = [], c = w.mot || {};
+    for (const [old, k] of [["mv-" + w.id, "v"], ["mm-" + w.id, "m"]]){
+      const v = await mediaGet(old).catch(() => null);
+      if (v && v.blob){ const id = newId("c"); await mediaPut("mi-" + id, v); await mediaDel(old); items.push({id, k, name: v.name, dur: v.dur || 0, s: k === "v" ? (c.vStart || 0) : (c.mStart || 0), l: c.vLen || 15}); }
+    }
+    w.items = items; delete w.mot; delete w.migrating; persist(); render();
+  }
+  function wMotiv(w){
+    if (!w.items){ motMigrate(w); }
+    const it = motItems(w), nv = it.filter(x => x.k === "v").length, nm = it.length - nv;
+    if (!it.length) return `<div class="motw empty"><b>🔥</b><span>${w.w === 1 && w.h === 1 ? "" : "Мотивация<br><small>нажми и добавь свои видео и песни</small>"}</span></div>`;
+    const firstV = it.find(x => x.k === "v"), url = firstV && mediaUrl("mi-" + firstV.id);
+    const count = `${nv ? `🎬 ${nv}` : ""}${nv && nm ? " · " : ""}${nm ? `🎵 ${nm}` : ""}`;
+    return `<div class="motw${url ? "" : " songs"}">${url ? `<video class="mv-prev" src="${url}#t=${firstV.s}" muted playsinline autoplay loop preload="metadata" data-s="${firstV.s}" data-l="${firstV.l}" data-w="${w.id}"></video>` : `<div class="mv-wave${w.snd ? " live" : ""}"><i></i><i></i><i></i><i></i><i></i></div>`}
+      <button class="mv-snd" data-msnd="${w.id}" aria-label="${w.snd ? "Выключить звук" : "Включить звук"}">${w.snd ? "🔊" : "🔇"}</button>
+      ${w.w === 1 && w.h === 1 ? "" : `<div class="mv-badge">${count} ▶</div>`}</div>`;
+  }
+  // sound is the user's choice per widget (🔇/🔊). It comes from a background player, so it keeps going
+  // on every tab and page; the little preview on the board stays muted and just follows its timing.
+  const MV_BG = {};                                   // widget id → {el, src}
+  const mvQuiet = () => FD.open || document.hidden;
+  function motivLoops(){
+    const live = new Set();
+    if (!mvQuiet()) allWidgets().forEach(w => {
+      if (w.type !== "motiv" || !w.snd) return;
+      const it = motItems(w), c = it.find(x => x.k === "v") || it.find(x => x.k === "m"), url = c && mediaUrl("mi-" + c.id);
+      if (!url) return;
+      live.add(w.id);
+      let b = MV_BG[w.id];
+      if (!b || b.src !== url || b.s !== c.s || b.l !== c.l){
+        if (b) b.el.pause();
+        const el = c.k === "v" ? Object.assign(document.createElement("video"), {playsInline: true}) : new Audio();
+        el.preload = "auto"; el.src = url;
+        b = MV_BG[w.id] = {el, src: url, s: c.s, l: c.l};
+        el.addEventListener("loadedmetadata", () => { try { el.currentTime = c.s; } catch(e){} el.play().catch(() => {}); }, {once: true});
+        el.addEventListener("timeupdate", () => { if (el.currentTime >= c.s + c.l || el.ended) try { el.currentTime = c.s; } catch(e){} });
+        el.addEventListener("ended", () => { try { el.currentTime = c.s; } catch(e){} el.play().catch(() => {}); });
+      } else if (b.el.paused) b.el.play().catch(() => {});
+    });
+    Object.keys(MV_BG).forEach(id => { if (!live.has(id)){ MV_BG[id].el.pause(); MV_BG[id].el.removeAttribute("src"); delete MV_BG[id]; } });
+    // board previews: always muted, kept in step with the background sound
+    document.querySelectorAll("video.mv-prev").forEach(el => {
+      if (el.dataset.ok) return; el.dataset.ok = 1;
+      const s = +el.dataset.s || 0, l = +el.dataset.l || 15, wid = el.dataset.w;
+      el.muted = true;
+      el.addEventListener("loadedmetadata", () => { try { el.currentTime = s; } catch(e){} el.play().catch(() => {}); });
+      el.addEventListener("timeupdate", () => {
+        const b = MV_BG[wid];
+        if (b && b.el.tagName === "VIDEO" && Math.abs(b.el.currentTime - el.currentTime) > 0.35) try { el.currentTime = b.el.currentTime; } catch(e){}
+        else if (el.currentTime >= s + l || el.currentTime < s - 0.5) try { el.currentTime = s; } catch(e){}
+      });
+    });
+    document.querySelectorAll(".mv-wave").forEach(el => { const w = el.closest("[data-w]"); el.classList.toggle("live", !!(w && MV_BG[w.dataset.w])); });
+  }
+  // a tap anywhere unlocks sound the phone blocked on start
+  document.addEventListener("pointerdown", () => { Object.values(MV_BG).forEach(b => { if (b.el.paused && !mvQuiet()) b.el.play().catch(() => {}); }); }, {passive: true});
+  document.addEventListener("visibilitychange", motivLoops);
+
+  // ----- the feed: one clip on screen at a time, only that one plays -----
+  const FD = {open: false, wid: null, list: [], cur: -1, media: null, raf: 0};
+  const SONG_BG = ["linear-gradient(160deg,#ff7a1a,#e5484d)", "linear-gradient(160deg,#8b5cf6,#3e8bff)", "linear-gradient(160deg,#2fd3a0,#3e8bff)", "linear-gradient(160deg,#ff4f9a,#8b5cf6)", "linear-gradient(160deg,#ffc928,#ff7a1a)"];
+  function openFeed(wid){
+    const w = LAY().find(x => x.id === wid); if (!w) return;
+    const it = motItems(w); if (!it.length){ openMotivCfg(wid); return; }
+    FD.open = true; FD.wid = wid; FD.cur = -1; motivLoops();
+    FD.list = w.shuffle === false ? it.slice() : it.slice().sort(() => Math.random() - 0.5);
+    $("fdList").innerHTML = FD.list.map((c, i) => c.k === "v"
+      ? `<section class="fd-slide" data-i="${i}"><video playsinline preload="none"></video><div class="fd-cap">🎬 ${esc(c.name)}</div><div class="fd-bar"><i></i></div><div class="fd-paused">▶</div></section>`
+      : `<section class="fd-slide song" data-i="${i}" style="background:${SONG_BG[i % SONG_BG.length]}"><div class="fd-disc">🎵</div><div class="fd-wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="fd-cap">${esc(c.name)}</div><div class="fd-bar"><i></i></div><div class="fd-paused">▶</div></section>`).join("");
+    $("motiv").classList.add("open"); $("fdList").scrollTop = 0;
+    fdHydrate(); setTimeout(() => fdActivate(0), 60);
+  }
+  function fdHydrate(){
+    $("fdList").querySelectorAll(".fd-slide video").forEach(v => {
+      const c = FD.list[+v.closest(".fd-slide").dataset.i], url = mediaUrl("mi-" + c.id);
+      if (url && v.dataset.src !== url){ v.dataset.src = url; v.src = url + "#t=" + c.s; v.preload = "metadata"; }
+    });
+  }
+  function fdStop(){
+    cancelAnimationFrame(FD.raf);
+    if (FD.media){ FD.media.pause(); if (FD.media.tagName !== "VIDEO") FD.media.removeAttribute("src"); }
+    FD.media = null;
+  }
+  function fdActivate(i){
+    if (!FD.open || i === FD.cur || i < 0 || i >= FD.list.length) return;
+    fdStop(); FD.cur = i;
+    const slide = $("fdList").querySelector(`[data-i="${i}"]`), c = FD.list[i], url = mediaUrl("mi-" + c.id);
+    $("fdList").querySelectorAll(".fd-slide").forEach(s => s.classList.toggle("on", s === slide));
+    slide.classList.remove("paused");
+    if (!url){ setTimeout(() => { if (FD.cur === i){ FD.cur = -1; fdActivate(i); } }, 300); return; }
+    const m = c.k === "v" ? slide.querySelector("video") : new Audio(url);
+    if (c.k === "v" && !m.src){ m.src = url; m.dataset.src = url; }
+    FD.media = m; m.volume = 1;
+    const start = () => { try { m.currentTime = c.s; } catch(e){} m.play().catch(() => slide.classList.add("paused")); };
+    if (m.readyState >= 1) start(); else m.addEventListener("loadedmetadata", start, {once: true});
+    const bar = slide.querySelector(".fd-bar i");
+    const tick = () => {
+      if (FD.media !== m) return;
+      const p = (m.currentTime - c.s) / c.l;
+      if (m.currentTime >= c.s + c.l || m.ended){ try { m.currentTime = c.s; } catch(e){} if (m.paused && !slide.classList.contains("paused")) m.play().catch(() => {}); }   // the fragment loops while you watch
+      bar.style.width = Math.max(0, Math.min(100, p * 100)) + "%";
+      FD.raf = requestAnimationFrame(tick);
+    };
+    FD.raf = requestAnimationFrame(tick);
+  }
+  // which slide is on screen
+  $("fdList").addEventListener("scroll", () => {
+    clearTimeout(FD.st);
+    FD.st = setTimeout(() => { const h = $("fdList").clientHeight || 1; fdActivate(Math.round($("fdList").scrollTop / h)); }, 90);
+  }, {passive: true});
+  $("fdList").addEventListener("click", e => {
+    const slide = e.target.closest(".fd-slide"); if (!slide || !FD.media || +slide.dataset.i !== FD.cur) return;
+    if (FD.media.paused){ FD.media.play().catch(() => {}); slide.classList.remove("paused"); }
+    else { FD.media.pause(); slide.classList.add("paused"); }
+  });
+  function closeMotiv(){
+    if (!FD.open) return false;
+    FD.open = false; fdStop();
+    $("fdList").querySelectorAll("video").forEach(v => { v.pause(); v.removeAttribute("src"); v.load(); });
+    $("fdList").innerHTML = ""; $("motiv").classList.remove("open"); setTimeout(motivLoops, 50); return true;
+  }
+  window.__closeMotiv = closeMotiv;
+  $("mpClose").onclick = closeMotiv;
+  $("mpEdit").onclick = () => { const id = FD.wid; closeMotiv(); openMotivCfg(id); };
+  addEventListener("keydown", e => {
+    if (!FD.open) return;
+    if (e.key === "ArrowDown"){ e.preventDefault(); $("fdList").scrollBy({top: $("fdList").clientHeight, behavior: "smooth"}); }
+    if (e.key === "ArrowUp"){ e.preventDefault(); $("fdList").scrollBy({top: -$("fdList").clientHeight, behavior: "smooth"}); }
+    if (e.key === " "){ e.preventDefault(); const s = $("fdList").querySelector(".fd-slide.on"); if (s) s.click(); }
+    if (e.key === "Escape") closeMotiv();
+  });
+
+  // ----- settings: the list of clips + editing one fragment -----
+  let motId = null, motEdit = null;
+  function openMotivCfg(id){ motId = id; motEdit = null; renderMotivCfg(); closeSheets(); setTimeout(() => openSheet("motivSheet"), 80); }
+  function motW(){ return LAY().find(x => x.id === motId); }
+  function renderMotivCfg(){
+    const w = motW(); if (!w) return;
+    const it = motItems(w);
+    $("mcList").innerHTML = it.length ? it.map(c => `<div class="mc-item${motEdit === c.id ? " on" : ""}" data-cid="${c.id}">
+        <span class="mc-ic">${c.k === "v" ? "🎬" : "🎵"}</span><span class="mc-nm"><b>${esc(c.name)}</b><small>${mmss(c.s)} → ${mmss(Math.min(c.dur || c.s + c.l, c.s + c.l))}</small></span>
+        <button data-cdel="${c.id}" aria-label="Удалить">✕</button></div>`).join("")
+      : `<div class="lw-empty" style="padding:10px 0">Пока пусто — добавь видео или песни 👇</div>`;
+    $("mcShuffle").classList.toggle("on", w.shuffle !== false);
+    const c = it.find(x => x.id === motEdit);
+    $("mcEdit").hidden = !c;
+    if (c){
+      const dur = Math.max(1, Math.floor(c.dur || 0));
+      $("mcEName").textContent = (c.k === "v" ? "🎬 " : "🎵 ") + c.name;
+      $("mcRange").max = Math.max(0, dur - 1); $("mcRange").value = Math.min(c.s, dur - 1);
+      $("mcLen").innerHTML = [5, 10, 15, 30, 60].filter(n => n < dur + 5).map(n => `<button data-len="${n}" class="${n === c.l ? "on" : ""}">${n} с</button>`).join("") +
+        (dur > 5 ? `<button data-len="${dur}" class="${c.l === dur ? "on" : ""}">Целиком</button>` : "");
+      const pv = $("mcPrev"), url = mediaUrl("mi-" + c.id);
+      pv.hidden = c.k !== "v";
+      if (c.k === "v" && url && pv.dataset.src !== url){ pv.src = url; pv.dataset.src = url; }
+      mcTime();
+    }
+  }
+  function mcTime(){ const c = motItems(motW()).find(x => x.id === motEdit); if (c) $("mcETime").textContent = `${mmss(c.s)} → ${mmss(Math.min(c.dur || c.s + c.l, c.s + c.l))}`; }
+  function mcPreview(sec){
+    const c = motItems(motW()).find(x => x.id === motEdit); if (!c) return; const url = mediaUrl("mi-" + c.id); if (!url) return;
+    tmStopSong();
+    if (c.k === "v"){ const pv = $("mcPrev"); try { pv.currentTime = c.s; } catch(e){} pv.muted = false; pv.play().catch(() => {}); clearTimeout(tmStopT); tmStopT = setTimeout(() => pv.pause(), (sec || c.l) * 1000); }
+    else { const a = tmAudio = new Audio(url); a.addEventListener("loadedmetadata", () => { try { a.currentTime = c.s; } catch(e){} a.play().catch(() => {}); }, {once: true}); clearTimeout(tmStopT); tmStopT = setTimeout(() => a.pause(), (sec || c.l) * 1000); }
+  }
+  $("mcList").addEventListener("click", async e => {
+    const del = e.target.closest("[data-cdel]"), w = motW(); if (!w) return;
+    if (del){
+      const id = del.dataset.cdel; w.items = motItems(w).filter(x => x.id !== id); mediaDel("mi-" + id); mediaForget("mi-" + id);
+      if (motEdit === id) motEdit = null; persist(); renderMotivCfg(); render(); return;
+    }
+    const row = e.target.closest("[data-cid]"); if (!row) return;
+    tmStopSong(); $("mcPrev").pause();
+    motEdit = motEdit === row.dataset.cid ? null : row.dataset.cid; renderMotivCfg();
+  });
+  $("mcRange").addEventListener("input", () => { const c = motItems(motW()).find(x => x.id === motEdit); if (!c) return; c.s = +$("mcRange").value; mcTime(); if (c.k === "v") try { $("mcPrev").currentTime = c.s; } catch(e){} });
+  $("mcRange").addEventListener("change", () => { persist(); renderMotivCfg(); mcPreview(4); });
+  $("mcLen").onclick = e => { const b = e.target.closest("[data-len]"), c = motItems(motW()).find(x => x.id === motEdit); if (!b || !c) return; c.l = +b.dataset.len; persist(); renderMotivCfg(); };
+  $("mcPlayOne").onclick = () => mcPreview();
+  $("mcShuffle").onclick = () => { const w = motW(); if (!w) return; w.shuffle = w.shuffle === false; persist(); renderMotivCfg(); };
+  $("mcAddV").onclick = () => $("mcVIn").click();
+  $("mcAddM").onclick = () => $("mcMIn").click();
+  async function motivAdd(files, k){
+    const w = motW(); if (!w) return;
+    let added = 0;
+    for (const f of files){
+      const max = k === "v" ? 80 : 15;
+      if (f.size > max * 1024 * 1024){ toast(`«${f.name.slice(0, 24)}» больше ${max} МБ — пропущен`); continue; }
+      const dur = await new Promise(ok => {
+        const url = URL.createObjectURL(f), el = document.createElement(k === "v" ? "video" : "audio");
+        el.preload = "metadata"; el.src = url;
+        el.addEventListener("loadedmetadata", () => { URL.revokeObjectURL(url); ok(isFinite(el.duration) ? el.duration : 0); }, {once: true});
+        el.addEventListener("error", () => { URL.revokeObjectURL(url); ok(-1); }, {once: true});
+      });
+      if (dur < 0){ toast(`«${f.name.slice(0, 24)}» не воспроизводится — нужен mp4 / mp3`); continue; }
+      const id = newId("c");
+      try { await mediaPut("mi-" + id, {name: f.name.slice(0, 60), blob: f, dur}); }
+      catch(e){ toast("Не хватает места на телефоне"); break; }
+      MEDIA["mi-" + id] = {url: URL.createObjectURL(f)};
+      w.items = motItems(w).concat({id, k, name: f.name.replace(/\.[^.]+$/, "").slice(0, 60), dur, s: 0, l: Math.min(15, Math.max(1, Math.floor(dur)))});
+      added++;
+    }
+    if (added){ persist(); renderMotivCfg(); render(); toast(`Добавлено: ${added} ${k === "v" ? "🎬" : "🎵"} — нажми на любое, чтобы выбрать кусок`); }
+  }
+  $("mcVIn").onchange = e => { const f = [...(e.target.files || [])].slice(0, 20); e.target.value = ""; if (f.length) motivAdd(f, "v"); };
+  $("mcMIn").onchange = e => { const f = [...(e.target.files || [])].slice(0, 20); e.target.value = ""; if (f.length) motivAdd(f, "m"); };
+  $("mcDone").onclick = () => { tmStopSong(); $("mcPrev").pause(); closeSheets(); render(); };
+  $("mcWatch").onclick = () => { const id = motId; tmStopSong(); $("mcPrev").pause(); closeSheets(); setTimeout(() => openFeed(id), 200); };
+
   function tmBeep(){
     if (tmCfg().tone === "custom" && tmPlayCustom()) return;
     try {
@@ -3125,7 +3434,8 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
       if (act === "photos"){ openPhotoCfg(w.id); return; }
       if (act === "goal"){ openGoal(w.id); return; }
       if (act === "lastcfg"){ openLastCfg(w.id); return; }
-      else if (act === "del"){ LAY().splice(i,1); if (w.type === "photo") photoIds(w).forEach(pid => deletePhoto(pid)); }
+      if (act === "motcfg"){ openMotivCfg(w.id); return; }
+      else if (act === "del"){ LAY().splice(i,1); if (w.type === "photo") photoIds(w).forEach(pid => deletePhoto(pid)); if (w.type === "motiv"){ ["mv-", "mm-"].forEach(k => mediaDel(k + w.id)); motItems(w).forEach(c => { mediaDel("mi-" + c.id); mediaForget("mi-" + c.id); }); } }
       render(); persist(); return;
     }
     if (editing || Date.now() < suppressClickUntil) return;
@@ -3142,6 +3452,9 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
     if (wEl && wEl.classList.contains("t-note")){ openNote(wEl.dataset.w); return; }
     if (wEl && wEl.classList.contains("t-game")){ openGame(); return; }
     if (wEl && wEl.classList.contains("t-stack")){ openStack(); return; }
+    const snd = e.target.closest("[data-msnd]");
+    if (snd){ const w = LAY().find(x => x.id === snd.dataset.msnd); if (w){ w.snd = !w.snd; persist(); render(); toast(w.snd ? "Звук на главном экране включён 🔊" : "Звук выключен 🔇"); } return; }
+    if (wEl && wEl.classList.contains("t-motiv")){ openFeed(wEl.dataset.w); return; }
     const ld = e.target.closest("[data-lastday]"); if (ld){ openLast(ld.dataset.lastday, ld.dataset.lastact); return; }
     if (wEl && wEl.classList.contains("t-photo")){
       const w = LAY().find(x => x.id === wEl.dataset.w); if (!w) return;
@@ -3163,6 +3476,7 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
     render(); persist(); scrollToRow(pos.y);
     if (t === "goal") openGoal(nw.id);
     if (t === "note") openNote(nw.id);
+    if (t === "motiv") openMotivCfg(nw.id);
   });
 
   // ---------- side scroll rail (edit mode) ----------
@@ -3548,6 +3862,7 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
 
   window.__androidBack = () => {
     if ($("viewer").classList.contains("open")){ $("viewer").classList.remove("open"); return true; }
+    if (window.__closeMotiv && window.__closeMotiv()) return true;
     if (window.__closeGame && window.__closeGame()) return true;
     if (window.__closeStack && window.__closeStack()) return true;
     if (document.querySelector(".sheet.open")){ document.getElementById("backdrop").click(); return true; }
