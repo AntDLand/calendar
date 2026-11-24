@@ -366,6 +366,10 @@
   .pdots-w{position:absolute;left:0;right:0;bottom:7px;display:flex;justify-content:center;gap:4px;pointer-events:none}
   .pdots-w i{width:5px;height:5px;border-radius:5px;background:rgba(255,255,255,.55);box-shadow:0 0 2px rgba(0,0,0,.5);transition:width .2s}
   .pdots-w i.on{width:12px;background:#fff}
+  .sgfile{display:flex;align-items:center;gap:10px;background:var(--card2);border-radius:14px;padding:8px 8px 8px 12px;margin:6px 0 10px}
+  .sgfile span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px;color:var(--muted)}
+  .sgfile b{color:var(--text)}
+  .sgfile button{flex:none;border:none;background:var(--accent);color:var(--accent-ink);border-radius:10px;padding:9px 12px;font:800 13px ManropeLocal,Manrope,sans-serif;cursor:pointer}
   .sgtime{display:flex;align-items:baseline;justify-content:space-between;margin:4px 0 8px}
   .sgtime b{font:800 26px ManropeLocal,Manrope,sans-serif;font-variant-numeric:tabular-nums}
   .sgtime span{color:var(--muted);font-weight:700;font-size:13px}
@@ -796,14 +800,13 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
 <div class="sheet" id="songSheet">
   <div class="grab"></div>
   <h3>🎵 Момент песни</h3>
-  <div class="sub" id="sgName"></div>
+  <div class="sgfile"><span>🎵 <b id="sgName"></b></span><button id="sgOther2">Заменить песню</button></div>
   <div class="sgtime"><b id="sgTime">0:00</b><span id="sgTotal"></span></div>
   <input type="range" id="sgRange" min="0" max="0" step="1" value="0" aria-label="С какого места играть">
   <div class="sgctl"><button id="sgBack">−5 с</button><button id="sgPlay">▶ Прослушать</button><button id="sgFwd">+5 с</button></div>
   <div class="sect">Сколько играть</div>
   <div class="glacts" id="sgLen"></div>
   <button class="primary" id="sgSave">Сохранить</button>
-  <button class="ghost" id="sgOther">Выбрать другую песню</button>
 </div>
 
 <div class="sheet" id="photoSheet">
@@ -1571,7 +1574,7 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
     const len = +($("sgLen").querySelector(".on") || {dataset: {len: 10}}).dataset.len;
     setTimerCfg({tone: "custom", songStart: +$("sgRange").value, songLen: len}); tmStopSong(); closeSheets(); toast("Момент сохранён 🎵");
   };
-  $("sgOther").onclick = () => { tmStopSong(); $("tmCustomIn").click(); };
+  $("sgOther2").onclick = () => { tmStopSong(); $("tmCustomIn").click(); };
   $("tmVibSeg").addEventListener("click", e => { const b = e.target.closest("[data-vib]"); if (b){ setTimerCfg({vibStyle: b.dataset.vib}); if (navigator.vibrate) try { navigator.vibrate(VIBS[b.dataset.vib]); } catch(_){} } });
   $("tmTest").onclick = () => { tmSignal(); const c = tmCfg(); toast(!c.sound && !c.vib ? "Звук и вибрация выключены" : "Так прозвучит конец отдыха ⏰"); };
   $("railSeg").addEventListener("click", e => {
