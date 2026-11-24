@@ -2896,12 +2896,18 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
       if (saved && saved.blob && saved.s === c.s){ THUMB[c.id] = {s: c.s, url: URL.createObjectURL(saved.blob)}; thumbsChanged(); return; }
       const url = MEDIA["mi-" + c.id] && MEDIA["mi-" + c.id].url ? MEDIA["mi-" + c.id].url : await mediaGet("mi-" + c.id).then(v => v && v.blob ? URL.createObjectURL(v.blob) : null).catch(() => null);
       if (!url){ delete THUMB[c.id]; return; }
-      const blob = await grabFrame(url, c.s);
+      const blob = await thumbQueue(() => grabFrame(url, c.s));
       if (!blob){ delete THUMB[c.id]; return; }
       mediaPut("mt-" + c.id, {blob, s: c.s}).catch(() => {});
       THUMB[c.id] = {s: c.s, url: URL.createObjectURL(blob)}; thumbsChanged();
     })();
     return (THUMB["old-" + c.id] || {}).url || NOPOSTER;
+  }
+  let thumbChain = Promise.resolve();
+  function thumbQueue(job){
+    const run = thumbChain.then(async () => { while (FD.open) await new Promise(r => setTimeout(r, 700)); return job(); }).catch(() => null);
+    thumbChain = run.then(() => new Promise(r => setTimeout(r, 150)));
+    return run;
   }
   function grabFrame(url, at){
     return new Promise(ok => {
@@ -2971,9 +2977,9 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
       let b = MV_BG[w.id];
       if (!b || b.src !== url || b.s !== c.s || b.l !== c.l){
         if (b) b.el.pause();
-        const el = c.k === "v" ? Object.assign(document.createElement("video"), {playsInline: true}) : new Audio();
+        const el = new Audio();
         el.preload = "auto"; el.src = url;
-        b = MV_BG[w.id] = {el, src: url, s: c.s, l: c.l};
+        b = MV_BG[w.id] = {el, src: url, s: c.s, l: c.l, isVideo: c.k === "v"};
         el.addEventListener("loadedmetadata", () => { try { el.currentTime = c.s; } catch(e){} el.play().catch(() => {}); }, {once: true});
         el.addEventListener("timeupdate", () => { if (el.currentTime >= c.s + c.l || el.ended) try { el.currentTime = c.s; } catch(e){} });
         el.addEventListener("ended", () => { try { el.currentTime = c.s; } catch(e){} el.play().catch(() => {}); });
@@ -2988,7 +2994,7 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
       el.addEventListener("loadedmetadata", () => { try { el.currentTime = s; } catch(e){} el.play().catch(() => {}); });
       el.addEventListener("timeupdate", () => {
         const b = MV_BG[wid];
-        if (b && b.el.tagName === "VIDEO" && Math.abs(b.el.currentTime - el.currentTime) > 0.35) try { el.currentTime = b.el.currentTime; } catch(e){}
+        if (b && b.isVideo && Math.abs(b.el.currentTime - el.currentTime) > 0.35) try { el.currentTime = b.el.currentTime; } catch(e){}
         else if (el.currentTime >= s + l || el.currentTime < s - 0.5) try { el.currentTime = s; } catch(e){}
       });
     });
@@ -3005,6 +3011,7 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
     const w = LAY().find(x => x.id === wid); if (!w) return;
     const it = motItems(w); if (!it.length){ openMotivCfg(wid); return; }
     FD.open = true; FD.wid = wid; FD.cur = -1; motivLoops();
+    document.querySelectorAll("video.mv-prev").forEach(v => v.pause());
     FD.list = w.shuffle === false ? it.slice() : it.slice().sort(() => Math.random() - 0.5);
     $("fdList").innerHTML = FD.list.map((c, i) => c.k === "v"
       ? `<section class="fd-slide" data-i="${i}"><video playsinline preload="none" poster="${thumbOf(c)}"></video><div class="fd-bar"><i></i></div><div class="fd-paused">▶</div></section>`
@@ -3015,7 +3022,7 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
   function fdHydrate(){
     $("fdList").querySelectorAll(".fd-slide video").forEach(v => {
       const i = +v.closest(".fd-slide").dataset.i, c = FD.list[i], url = mediaUrl("mi-" + c.id);
-      if (url && v.dataset.src !== url){ v.dataset.src = url; v.src = url + "#t=" + c.s; v.preload = Math.abs(i - Math.max(0, FD.cur)) <= 1 ? "auto" : "metadata"; }
+      if (url && v.dataset.src !== url && Math.abs(i - Math.max(0, FD.cur)) <= 1){ v.dataset.src = url; v.src = url + "#t=" + c.s; v.preload = i === Math.max(0, FD.cur) ? "auto" : "metadata"; }
     });
   }
   function fdStop(){
@@ -3026,8 +3033,9 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
   function fdActivate(i){
     if (!FD.open || i === FD.cur || i < 0 || i >= FD.list.length) return;
     fdStop(); FD.cur = i;
-    // warm up the neighbours: their first frame is decoded before you swipe
-    [i - 1, i + 1].forEach(j => { const v = $("fdList").querySelector(`[data-i="${j}"] video`), cj = FD.list[j]; if (v && cj){ v.preload = "auto"; if (v.readyState < 2 && v.src) v.load(); } });
+    // the clip you leave gives its decoder back (phones only have a few)
+    $("fdList").querySelectorAll(".fd-slide video").forEach(v => { const j = +v.closest(".fd-slide").dataset.i; if (j !== i && v.src && Math.abs(j - i) > 1){ v.pause(); v.removeAttribute("src"); v.dataset.src = ""; v.load(); } });
+    fdHydrate();
     const slide = $("fdList").querySelector(`[data-i="${i}"]`), c = FD.list[i], url = mediaUrl("mi-" + c.id);
     $("fdList").querySelectorAll(".fd-slide").forEach(s => s.classList.toggle("on", s === slide));
     slide.classList.remove("paused");
@@ -3064,7 +3072,8 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
     if (!FD.open) return false;
     FD.open = false; fdStop();
     $("fdList").querySelectorAll("video").forEach(v => { v.pause(); v.removeAttribute("src"); v.load(); });
-    $("fdList").innerHTML = ""; $("motiv").classList.remove("open"); setTimeout(motivLoops, 50); return true;
+    $("fdList").innerHTML = ""; $("motiv").classList.remove("open");
+    setTimeout(() => { motivLoops(); document.querySelectorAll("video.mv-prev").forEach(v => v.play().catch(() => {})); }, 50); return true;
   }
   window.__closeMotiv = closeMotiv;
   $("mpClose").onclick = closeMotiv;
@@ -3135,6 +3144,7 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
   async function motivAdd(files, k){
     const w = motW(); if (!w) return;
     let added = 0;
+    toast(files.length > 1 ? `Добавляю ${files.length} файла…` : "Добавляю…");
     for (const f of files){
       const max = k === "v" ? 80 : 15;
       if (f.size > max * 1024 * 1024){ toast(`«${f.name.slice(0, 24)}» больше ${max} МБ — пропущен`); continue; }
@@ -3142,13 +3152,12 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
       const dur = await new Promise(ok => {
         const url = URL.createObjectURL(f), el = document.createElement(k === "v" ? "video" : "audio");
         let done = false; const fin = d => { if (done) return; done = true; clearTimeout(t); URL.revokeObjectURL(url); el.removeAttribute("src"); ok(d); };
-        const t = setTimeout(() => fin(0), 6000);
+        const t = setTimeout(() => fin(0), 3000);
         el.addEventListener("loadedmetadata", () => fin(isFinite(el.duration) ? el.duration : 0), {once: true});
         el.addEventListener("error", () => fin(0), {once: true});
         el.muted = true; el.preload = "metadata"; el.src = url; el.load();
       });
-      const looksOk = k === "v" ? /^video\//.test(f.type) || /\.(mp4|m4v|mov|webm|3gp|mkv)$/i.test(f.name) : /^audio\//.test(f.type) || /\.(mp3|m4a|aac|ogg|oga|wav|opus|flac)$/i.test(f.name);
-      if (!dur && !looksOk){ toast(`«${f.name.slice(0, 24)}» не похоже на ${k === "v" ? "видео" : "песню"}`); continue; }
+      if (/^(image|text)\//.test(f.type)){ toast(`«${f.name.slice(0, 24)}» — это не ${k === "v" ? "видео" : "песня"}`); continue; }
       const id = newId("c");
       try { await mediaPut("mi-" + id, {name: f.name.slice(0, 60), blob: f, dur}); }
       catch(e){ toast("Не хватает места на телефоне"); break; }
