@@ -1114,11 +1114,13 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
     if (editing) return;
     editSnapshot = JSON.parse(JSON.stringify({layout: state.layout, pages: state.pages || [], page}));
     editAdded = []; editRemoved = []; editDirty = false;
+    allWidgets().forEach(w => { if (w.type === "photo") PH_FREEZE[w.id] = photoIdx(w); });
     editing = true;
   }
   function finishEdit(keep){
     if (!editing) return;
     editing = false;
+    Object.keys(PH_FREEZE).forEach(k => delete PH_FREEZE[k]);
     if (keep){
       editRemoved.forEach(pid => deletePhoto(pid, true));
       if (editDirty) persist();
@@ -1143,6 +1145,25 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
   const actById = id => state.activities.find(a => a.id === id);
   const dayActs = k => (state.days[k]?.a || []).filter(actById);
   const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const PH_URL = {};                                  // photo id → {src, url}
+  let BLOB_IMG = false;                               // set once the browser has shown a blob: picture
+  function photoSrc(pid){
+    const raw = photos[pid], c = PH_URL[pid];
+    if (c && c.src === raw) return c.url;
+    const src = safeImg(raw); if (!src) return null;
+    if (!BLOB_IMG || !src.startsWith("data:")) return src;
+    const b = dataUrlToBlob(src); if (!b) return src;
+    if (c) URL.revokeObjectURL(c.url);
+    const url = URL.createObjectURL(b); PH_URL[pid] = {src: raw, url}; return url;
+  }
+  function blobImgTest(){
+    try {
+      const b = dataUrlToBlob("data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"), u = URL.createObjectURL(b), im = new Image();
+      im.onload = () => { URL.revokeObjectURL(u); BLOB_IMG = true; render(); };
+      im.onerror = () => URL.revokeObjectURL(u);
+      im.src = u;
+    } catch(e){}
+  }
   const safeImg = s => typeof s === "string" && (/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(s) || /^https:\/\/[^\s"'<>]+$/.test(s)) ? s : null;
   const newId = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
 
@@ -1223,6 +1244,11 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
       if (!s.activities.some(a => a.id === "home" || /дом/i.test(a.name || ""))) s.activities.push({id:"home", name:"Тренировки дома", emoji:"🏠", color:"#ff7a59"});
       s.lv5 = true;
     }
+    if (!s.lv7){
+      [s.layout || [], ...(Array.isArray(s.pages) ? s.pages : [])].flat().forEach(w => { if (w && w.type === "motiv" && Array.isArray(w.items)) w.items.forEach(c => {
+        if (c.k === "v" && !c.s && c.l === 15 && (!c.dur || c.dur > 15)) c.l = c.dur ? Math.ceil(c.dur) : 9999; }); });
+      s.lv7 = true;
+    }
     if (!s.lv6){ const h = s.activities.find(a => a.id === "home" && a.name === "Дома"); if (h) h.name = "Тренировки дома"; s.lv6 = true; }
     if (!s.lv4 && s.days && Array.isArray(s.exercises)){
       const kinds = {}; s.exercises.forEach(x => kinds[x.id] = x.kind || "");
@@ -1259,7 +1285,39 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
     try { const s = normalize(JSON.parse(localStorage.getItem(LS_KEY))); if (s) state = s; } catch(e){}
     try { photos = JSON.parse(localStorage.getItem(LS_PHOTOS)) || {}; } catch(e){ photos = {}; }
   }
-  function saveLocalPhotos(){ try { localStorage.setItem(LS_PHOTOS, JSON.stringify(photos)); } catch(e){ toast("Память для фото заполнена — удали одно из фото"); } }
+  // Photos are kept in IndexedDB, one record per photo ("ph:<id>"). localStorage holds only ~5 MB in total,
+  // which ran out at about 25–30 photos and then new photos were silently lost. It is used only if IndexedDB fails.
+  const PH_PRE = "ph:";
+  let photoIDB = !!window.indexedDB;
+  function saveLocalPhotos(){ if (!photoIDB) try { localStorage.setItem(LS_PHOTOS, JSON.stringify(photos)); } catch(e){ toast("Память для фото заполнена — удали одно из фото"); } }
+  function photoStore(pid, src){
+    if (!photoIDB){ saveLocalPhotos(); return; }
+    mediaPut(PH_PRE + pid, src).catch(() => { photoIDB = false; saveLocalPhotos(); });
+  }
+  async function loadIDBPhotos(){
+    if (!photoIDB) return;
+    try {
+      const db = await songDB();
+      const got = await new Promise((ok, no) => {
+        const out = {}, r = db.transaction("files").objectStore("files").openCursor(IDBKeyRange.bound(PH_PRE, PH_PRE + "\uffff"));
+        r.onsuccess = () => { const c = r.result; if (!c) return ok(out); out[String(c.key).slice(PH_PRE.length)] = c.value; c.continue(); };
+        r.onerror = () => no(r.error);
+      });
+      let changed = false;
+      Object.entries(got).forEach(([pid, src]) => { if (photos[pid] !== src){ photos[pid] = src; changed = true; } });
+      // older versions kept every photo in localStorage → move them over once, then free that space
+      if (localStorage.getItem(LS_PHOTOS)){
+        const old = Object.entries(photos).filter(([pid]) => !(pid in got));
+        await new Promise((ok, no) => {
+          const t = db.transaction("files", "readwrite"), st = t.objectStore("files");
+          old.forEach(([pid, src]) => st.put(src, PH_PRE + pid));
+          t.oncomplete = ok; t.onerror = () => no(t.error); t.onabort = () => no(t.error || new Error("abort"));
+        });
+        localStorage.removeItem(LS_PHOTOS);
+      }
+      if (changed) render();
+    } catch(e){ photoIDB = false; }
+  }
 
   let writing = false, pending = false;
   async function persist(){
@@ -1276,14 +1334,15 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
   }
   async function savePhoto(pid, src){
     if (editing) editAdded.push(pid);
-    photos[pid] = src; saveLocalPhotos();
+    photos[pid] = src; photoStore(pid, src);
     if (!userCol) return;
     try { await userCol.doc(pid).set({src}); }
     catch(e){ toast(e && e.code === "quota_exceeded" ? "Место для фото закончилось" : "Фото сохранено только на этом устройстве"); }
   }
   async function deletePhoto(pid, now){
     if (editing && !now){ editRemoved.push(pid); return; }
-    delete photos[pid]; saveLocalPhotos();
+    delete photos[pid]; if (photoIDB) mediaDel(PH_PRE + pid); else saveLocalPhotos();
+    if (PH_URL[pid]){ URL.revokeObjectURL(PH_URL[pid].url); delete PH_URL[pid]; }
     if (userCol) try { await userCol.doc(pid).delete(); } catch(e){}
   }
 
@@ -1495,6 +1554,9 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
   let lastNewPhotoW = null;
   $("fileIn").onchange = async e => {
     const files = [...(e.target.files || [])].slice(0, 20); e.target.value = "";
+    await addPhotoFiles(files);
+  };
+  async function addPhotoFiles(files){
     if (!files.length){ photoAddTo = null; return; }
     // several photos picked for a new widget → one widget with all of them
     const replace = !!photoTarget;
@@ -1504,6 +1566,27 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
     }
     if (files.length > 1 && !replace) toast(`Добавлено фото: ${files.length} 🖼`);
     photoAddTo = null;
+  }
+  // Android app: the gallery photo is opened and shrunk by Android itself, then read from /media/
+  window.__photosPicked = async json => {
+    let list = []; try { list = JSON.parse(json) || []; } catch(e){}
+    const files = [], bad = [];
+    for (const r of list){
+      if (!r || r.error || !r.url){ bad.push(r || {}); continue; }
+      try {
+        const b = await (await fetch(r.url)).blob();
+        files.push(new File([b], r.name || "photo.jpg", {type: r.type || b.type || "image/jpeg"}));
+      } catch(e){ bad.push({error: r.name, code: "unreadable"}); }
+      try { AndroidBridge.mediaDelete(r.id); } catch(e){}
+    }
+    if (bad.length && !files.length){
+      photoAddTo = null;
+      toast(bad[0].code === "unreadable" ? "Не получилось открыть фото — если оно только в облаке, скачай его в Галерее"
+                                         : "Это фото не получилось открыть — попробуй другое");
+      return;
+    }
+    await addPhotoFiles(files);
+    if (bad.length) setTimeout(() => toast(`Не вышло добавить: ${bad.length} фото`), 2200);
   };
 
   // ---------- paste a picture or a link to it ----------
@@ -1558,7 +1641,9 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
   $("pasteGo").onclick = () => photoFromUrl($("pasteUrl").value);
   $("pasteUrl").addEventListener("keydown", e => { if (e.key === "Enter"){ e.preventDefault(); photoFromUrl($("pasteUrl").value); } });
   $("closePaste").onclick = () => { photoTarget = null; photoAddTo = null; closeSheets(); };
-  function pickPhoto(target, add){ photoTarget = add ? null : (target || null); photoAddTo = add ? target : null; $("fileIn").click(); }
+  function pickPhoto(target, add){ photoTarget = add ? null : (target || null); photoAddTo = add ? target : null;
+    if (window.AndroidBridge && AndroidBridge.pickPhotos){ try { AndroidBridge.pickPhotos(); return; } catch(e){} }
+    $("fileIn").click(); }
 
   // ---------- stats ----------
   // difficulty = how many days in a row may be skipped without breaking the series
@@ -1774,8 +1859,10 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
   const photoIds = w => photoList(w).map(x => x.p);
   const ROT = {tap: 0, 5: 5e3, 30: 3e4, 60: 6e4, 3600: 36e5, day: 0};
   const rotOf = w => w.every === undefined ? "30" : String(w.every);
+  const PH_FREEZE = {};                               // widget id → photo shown when editing started
   function photoIdx(w){
     const n = photoList(w).length; if (n < 2) return 0;
+    if (editing && PH_FREEZE[w.id] !== undefined) return PH_FREEZE[w.id] % n;
     const r = rotOf(w);
     if (r === "tap") return ((w.idx || 0) % n + n) % n;
     if (r === "day"){ const d = new Date(); return Math.floor(new Date(d.getFullYear(), d.getMonth(), d.getDate()) / 864e5) % n; }
@@ -1783,7 +1870,7 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
   }
   const photoCur = w => photoList(w)[photoIdx(w)] || {p: w.photo, cut: !!w.cut};
   function wPhoto(w){
-    const cur = photoCur(w), src = safeImg(photos[cur.p]), n = photoList(w).length;
+    const cur = photoCur(w), src = photoSrc(cur.p), n = photoList(w).length;
     const dots = n > 1 && w.w > 1 ? `<div class="pdots-w">${photoList(w).map((x, i) => `<i class="${i === photoIdx(w) ? "on" : ""}"></i>`).join("")}</div>` : "";
     const whole = w.fit === "contain" && !cur.cut;
     return (src ? (whole ? `<img class="phblur" src="${esc(src)}" alt="" aria-hidden="true" referrerpolicy="no-referrer">` : "") +
@@ -1796,7 +1883,7 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
       const w = LAY().find(x => x.id === el.dataset.w); if (!w || photoList(w).length < 2) return;
       const i = photoIdx(w); if (String(i) === el.dataset.pi) return;
       el.dataset.pi = i;
-      const cur = photoCur(w), src = safeImg(photos[cur.p]), img = el.querySelector("img.phmain");
+      const cur = photoCur(w), src = photoSrc(cur.p), img = el.querySelector("img.phmain");
       if (!img || !src) return;
       img.classList.add("swap");
       setTimeout(() => {
@@ -1814,7 +1901,7 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
   function renderPhotoCfg(){
     const w = LAY().find(x => x.id === photoCfgId); if (!w) return;
     const list = photoList(w), r = rotOf(w);
-    $("phList").innerHTML = list.map((x, i) => `<div class="phthumb${x.cut ? " cut" : ""}"><img src="${esc(safeImg(photos[x.p]) || "")}" alt="">${list.length > 1 ? `<button data-phdel="${i}" aria-label="Убрать фото">✕</button>` : ""}</div>`).join("");
+    $("phList").innerHTML = list.map((x, i) => `<div class="phthumb${x.cut ? " cut" : ""}"><img src="${esc(photoSrc(x.p) || "")}" alt="">${list.length > 1 ? `<button data-phdel="${i}" aria-label="Убрать фото">✕</button>` : ""}</div>`).join("");
     $("phRot").innerHTML = [["5","5 сек"],["30","30 сек"],["60","1 мин"],["3600","1 час"],["day","Раз в день"],["tap","По нажатию"]]
       .map(([v, t]) => `<button data-rot="${v}" class="${r === v ? "on" : ""}">${t}</button>`).join("");
     $("phRotBox").style.display = list.length > 1 ? "" : "none";
@@ -2837,7 +2924,16 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
   const VIBS = {short: [200], long: [300, 150, 300, 150, 300], pulse: [120, 80, 120, 80, 120, 80, 120, 80, 120, 300, 600]};
   // own song: the file lives in IndexedDB on this device (too big for localStorage / the cloud)
   const SONG_DB = "sportcal-media";
-  function songDB(){ return new Promise((ok, no) => { const r = indexedDB.open(SONG_DB, 1); r.onupgradeneeded = () => r.result.createObjectStore("files"); r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); }); }
+  let songDBp = null;
+  function songDB(){
+    if (!songDBp) songDBp = new Promise((ok, no) => {
+      const r = indexedDB.open(SONG_DB, 1);
+      r.onupgradeneeded = () => r.result.createObjectStore("files");
+      r.onsuccess = () => { const db = r.result; db.onclose = () => { songDBp = null; }; db.onversionchange = () => { db.close(); songDBp = null; }; ok(db); };
+      r.onerror = () => { songDBp = null; no(r.error); };
+    });
+    return songDBp;
+  }
   async function songPut(v){ const db = await songDB(); return new Promise((ok, no) => { const t = db.transaction("files", "readwrite"); t.objectStore("files").put(v, "timer"); t.oncomplete = ok; t.onerror = () => no(t.error); t.onabort = () => no(t.error || new Error("abort")); }); }
   async function songGet(){ const db = await songDB(); return new Promise(ok => { const r = db.transaction("files").objectStore("files").get("timer"); r.onsuccess = () => ok(r.result || null); r.onerror = () => ok(null); }); }
   let song = null, songUrl = null;                       // {name, blob, dur}
@@ -2979,13 +3075,13 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
     const it = motItems(w), nv = it.filter(x => x.k === "v").length, nm = it.length - nv;
     if (!it.length) return `<div class="motw empty"><b>🔥</b><span>${w.w === 1 && w.h === 1 ? "" : "Мотивация<br><small>нажми и добавь свои видео и песни</small>"}</span></div>`;
     const firstV = it.find(x => x.k === "v"), url = firstV && clipUrl(firstV);
-    return `<div class="motw${url ? "" : " songs"}">${url ? `<video class="mv-prev" poster="${thumbOf(firstV)}" src="${url}#t=${firstV.s}" muted playsinline autoplay loop preload="metadata" data-s="${firstV.s}" data-l="${firstV.l}" data-w="${w.id}"></video>` : `<div class="mv-wave${w.snd ? " live" : ""}"><i></i><i></i><i></i><i></i><i></i></div>`}
+    return `<div class="motw${url ? "" : " songs"}">${url ? `<video class="mv-prev" poster="${thumbOf(firstV)}" src="${url}#t=${firstV.s}" data-u="${url}" muted playsinline ${editing ? "" : "autoplay "}loop preload="metadata" data-s="${firstV.s}" data-l="${firstV.l}" data-w="${w.id}"></video>` : `<div class="mv-wave${w.snd ? " live" : ""}"><i></i><i></i><i></i><i></i><i></i></div>`}
       <button class="mv-snd" data-msnd="${w.id}" aria-label="${w.snd ? "Выключить звук" : "Включить звук"}">${w.snd ? ICO_SOUND : ICO_MUTE}</button></div>`;
   }
   // sound is the user's choice per widget (🔇/🔊). It comes from a background player, so it keeps going
   // on every tab and page; the little preview on the board stays muted and just follows its timing.
   const MV_BG = {};                                   // widget id → {el, src}
-  const mvQuiet = () => FD.open || document.hidden;
+  const mvQuiet = () => FD.open || document.hidden || editing;
   function motivLoops(){
     const live = new Set();
     if (!mvQuiet()) allWidgets().forEach(w => {
@@ -3010,14 +3106,17 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
       if (el.dataset.ok) return; el.dataset.ok = 1;
       const s = +el.dataset.s || 0, l = +el.dataset.l || 15, wid = el.dataset.w;
       el.muted = true;
-      el.addEventListener("loadedmetadata", () => { try { el.currentTime = s; } catch(e){} el.play().catch(() => {}); });
+      el.addEventListener("loadedmetadata", () => { try { el.currentTime = s; } catch(e){} if (!editing) el.play().catch(() => {}); });
       el.addEventListener("timeupdate", () => {
+        if (editing) return;
         const b = MV_BG[wid];
         if (b && b.isVideo && Math.abs(b.el.currentTime - el.currentTime) > 0.35) try { el.currentTime = b.el.currentTime; } catch(e){}
         else if (el.currentTime >= s + l || el.currentTime < s - 0.5) try { el.currentTime = s; } catch(e){}
       });
     });
     document.querySelectorAll(".mv-wave").forEach(el => { const w = el.closest("[data-w]"); el.classList.toggle("live", !!(w && MV_BG[w.dataset.w])); });
+    // widget editing: previews stand still on their current frame, and start again when you are done
+    document.querySelectorAll("video.mv-prev").forEach(el => { if (editing) el.pause(); else if (el.paused && el.readyState >= 1 && !FD.open) el.play().catch(() => {}); });
   }
   // a tap anywhere unlocks sound the phone blocked on start
   document.addEventListener("pointerdown", () => { Object.values(MV_BG).forEach(b => { if (b.el.paused && !mvQuiet()) b.el.play().catch(() => {}); }); }, {passive: true});
@@ -3030,7 +3129,9 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
     const w = LAY().find(x => x.id === wid); if (!w) return;
     const it = motItems(w); if (!it.length){ openMotivCfg(wid); return; }
     FD.open = true; FD.wid = wid; FD.cur = -1; motivLoops();
-    document.querySelectorAll("video.mv-prev").forEach(v => v.pause());
+    // the board preview and the settings preview give their video decoder to the feed
+    document.querySelectorAll("video.mv-prev").forEach(v => { v.pause(); v.removeAttribute("src"); v.load(); });
+    vUnload($("mcPrev"));
     FD.list = w.shuffle === false ? it.slice() : it.slice().sort(() => Math.random() - 0.5);
     $("fdList").innerHTML = FD.list.map((c, i) => c.k === "v"
       ? `<section class="fd-slide" data-i="${i}"><video playsinline preload="none" poster="${thumbOf(c)}"></video><div class="fd-bar"><i></i></div><div class="fd-paused">▶</div></section>`
@@ -3041,9 +3142,11 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
   function fdHydrate(){
     $("fdList").querySelectorAll(".fd-slide video").forEach(v => {
       const i = +v.closest(".fd-slide").dataset.i, c = FD.list[i], url = clipUrl(c);
-      if (url && v.dataset.src !== url && Math.abs(i - Math.max(0, FD.cur)) <= 1){ v.dataset.src = url; v.src = url + "#t=" + c.s; v.preload = i === Math.max(0, FD.cur) ? "auto" : "metadata"; }
+      if (i !== Math.max(0, FD.cur)){ if (v.getAttribute("src")) vUnload(v); return; }
+      if (url && v.dataset.src !== url){ v.dataset.src = url; v.src = url + "#t=" + c.s; v.preload = "auto"; }
     });
   }
+  function vUnload(v){ try { v.pause(); v.removeAttribute("src"); v.dataset.src = ""; v.load(); } catch(e){} }
   function fdStop(){
     cancelAnimationFrame(FD.raf);
     if (FD.media){ FD.media.pause(); if (FD.media.tagName !== "VIDEO") FD.media.removeAttribute("src"); }
@@ -3053,7 +3156,7 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
     if (!FD.open || i === FD.cur || i < 0 || i >= FD.list.length) return;
     fdStop(); FD.cur = i;
     // the clip you leave gives its decoder back (phones only have a few)
-    $("fdList").querySelectorAll(".fd-slide video").forEach(v => { const j = +v.closest(".fd-slide").dataset.i; if (j !== i && v.src && Math.abs(j - i) > 1){ v.pause(); v.removeAttribute("src"); v.dataset.src = ""; v.load(); } });
+    $("fdList").querySelectorAll(".fd-slide video").forEach(v => { const j = +v.closest(".fd-slide").dataset.i; if (j !== i && v.getAttribute("src")) vUnload(v); });
     fdHydrate();
     const slide = $("fdList").querySelector(`[data-i="${i}"]`), c = FD.list[i], url = clipUrl(c);
     $("fdList").querySelectorAll(".fd-slide").forEach(s => s.classList.toggle("on", s === slide));
@@ -3068,9 +3171,16 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
     };
     if (m.readyState >= 1) start(); else m.addEventListener("loadedmetadata", start, {once: true});
     const bar = slide.querySelector(".fd-bar i");
+    let lastT = -1, lastMove = performance.now(), kicks = 0;
     const tick = () => {
       if (FD.media !== m) return;
-      const p = (m.currentTime - c.s) / c.l;
+      if (m.paused || slide.classList.contains("paused") || m.currentTime !== lastT){ lastT = m.currentTime; lastMove = performance.now(); }
+      else if (performance.now() - lastMove > 3000 && kicks < 3 && c.k === "v"){
+        kicks++; lastMove = performance.now(); const t = m.currentTime;
+        m.src = url + "#t=" + t; m.dataset.src = url;
+        m.addEventListener("loadedmetadata", () => { try { m.currentTime = t; } catch(e){} m.play().catch(() => {}); }, {once: true});
+      }
+      const p = (m.currentTime - c.s) / Math.max(0.5, Math.min(c.l, (c.dur || (isFinite(m.duration) ? m.duration : 0) || c.s + c.l) - c.s));
       if (m.currentTime >= c.s + c.l || m.ended){ try { m.currentTime = c.s; } catch(e){} if (m.paused && !slide.classList.contains("paused")) m.play().catch(() => {}); }   // the fragment loops while you watch
       bar.style.width = Math.max(0, Math.min(100, p * 100)) + "%";
       FD.raf = requestAnimationFrame(tick);
@@ -3092,7 +3202,10 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
     FD.open = false; fdStop();
     $("fdList").querySelectorAll("video").forEach(v => { v.pause(); v.removeAttribute("src"); v.load(); });
     $("fdList").innerHTML = ""; $("motiv").classList.remove("open");
-    setTimeout(() => { motivLoops(); document.querySelectorAll("video.mv-prev").forEach(v => v.play().catch(() => {})); }, 50); return true;
+    setTimeout(() => {
+      document.querySelectorAll("video.mv-prev").forEach(v => { if (!v.getAttribute("src") && v.dataset.u) v.src = v.dataset.u + "#t=" + (v.dataset.s || 0); });
+      motivLoops(); document.querySelectorAll("video.mv-prev").forEach(v => v.play().catch(() => {}));
+    }, 50); return true;
   }
   window.__closeMotiv = closeMotiv;
   // leave the feed with a sideways swipe (it slides away with your finger)
@@ -3120,8 +3233,10 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
     if (e.key === "Escape" || e.key === "ArrowLeft" || e.key === "ArrowRight") closeMotiv();
   });
 
+  // a new video plays whole (a piece only when you choose one); a song gives a 15-second piece
+  const motDefLen = (k, dur) => k === "v" ? (dur ? Math.max(1, Math.ceil(dur)) : 9999) : (dur ? Math.min(15, Math.max(1, Math.floor(dur))) : 15);
   function motLearnDur(id, d){
-    allWidgets().forEach(w => motItems(w).forEach(c => { if (c.id === id && !c.dur){ c.dur = d; if (c.l > d) c.l = Math.max(1, Math.floor(d)); } }));
+    allWidgets().forEach(w => motItems(w).forEach(c => { if (c.id === id && !c.dur){ c.dur = d; if (c.l > d) c.l = Math.max(1, Math.ceil(d)); } }));
     persist(); if ($("motivSheet").classList.contains("open")) renderMotivCfg();
   }
   // ----- settings: the list of clips + editing one fragment -----
@@ -3143,7 +3258,7 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
       $("mcEName").textContent = (c.k === "v" ? "🎬 " : "🎵 ") + c.name;
       $("mcRange").max = Math.max(0, dur - 1); $("mcRange").value = Math.min(c.s, dur - 1);
       $("mcLen").innerHTML = [5, 10, 15, 30, 60].filter(n => n < dur + 5).map(n => `<button data-len="${n}" class="${n === c.l ? "on" : ""}">${n} с</button>`).join("") +
-        (dur > 5 ? `<button data-len="${dur}" class="${c.l === dur ? "on" : ""}">Целиком</button>` : "");
+        (dur > 5 ? `<button data-len="${Math.ceil(c.dur)}" class="${c.l >= Math.ceil(c.dur) ? "on" : ""}">Целиком</button>` : "");
       const pv = $("mcPrev"), url = clipUrl(c);
       pv.hidden = c.k !== "v";
       if (c.k === "v") pv.poster = thumbOf(c);
@@ -3178,7 +3293,7 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
   // Android app: Android copies the files into the app's own storage and answers through __mediaPicked
   let pickFor = null;
   function nativePick(k){ pickFor = motId; try { AndroidBridge.pickMedia(k); } catch(e){ $(k === "v" ? "mcVIn" : "mcMIn").click(); } }
-  window.__mediaPicking = n => toast(n > 1 ? `Добавляю ${n} файла…` : "Добавляю…");
+  window.__mediaPicking = (n, k) => toast(k === "p" ? "Обрабатываю фото…" : n > 1 ? `Добавляю ${n} файла…` : "Добавляю…");
   window.__mediaPicked = (k, json) => {
     let list = []; try { list = JSON.parse(json) || []; } catch(e){}
     const w = allWidgets().find(x => x.id === pickFor) || motW(); if (!w || !list.length) return;
@@ -3186,7 +3301,7 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
     for (const r of list){
       if (!r || r.error || !r.url){ bad.push(r && r.error || "файл"); continue; }
       const dur = +r.dur || 0;
-      w.items = motItems(w).concat({id: r.id, k, name: String(r.name || "").slice(0, 60), dur, s: 0, l: dur ? Math.min(15, Math.max(1, Math.floor(dur))) : 15, u: r.url, t: r.thumb || ""});
+      w.items = motItems(w).concat({id: r.id, k, name: String(r.name || "").slice(0, 60), dur, s: 0, l: motDefLen(k, dur), u: r.url, t: r.thumb || ""});
       added++;
     }
     if (added){ persist(); renderMotivCfg(); render(); }
@@ -3218,14 +3333,14 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
       try { await mediaPut("mi-" + id, {name: f.name.slice(0, 60), blob: f, dur}); }
       catch(e){ toast("Не хватает места на телефоне"); break; }
       MEDIA["mi-" + id] = {url: URL.createObjectURL(f)};
-      w.items = motItems(w).concat({id, k, name: f.name.replace(/\.[^.]+$/, "").slice(0, 60), dur, s: 0, l: dur ? Math.min(15, Math.max(1, Math.floor(dur))) : 15});
+      w.items = motItems(w).concat({id, k, name: f.name.replace(/\.[^.]+$/, "").slice(0, 60), dur, s: 0, l: motDefLen(k, dur)});
       added++;
     }
     if (added){ persist(); renderMotivCfg(); render(); toast(`Добавлено: ${added} ${k === "v" ? "🎬" : "🎵"} — нажми на любое, чтобы выбрать кусок`); }
   }
   $("mcVIn").onchange = e => { const f = [...(e.target.files || [])].slice(0, 20); e.target.value = ""; if (f.length) motivAdd(f, "v"); };
   $("mcMIn").onchange = e => { const f = [...(e.target.files || [])].slice(0, 20); e.target.value = ""; if (f.length) motivAdd(f, "m"); };
-  $("mcDone").onclick = () => { tmStopSong(); $("mcPrev").pause(); closeSheets(); render(); };
+  $("mcDone").onclick = () => { tmStopSong(); vUnload($("mcPrev")); closeSheets(); render(); };
   $("mcWatch").onclick = () => { const id = motId; tmStopSong(); $("mcPrev").pause(); closeSheets(); setTimeout(() => openFeed(id), 200); };
 
   function tmBeep(){
@@ -3590,7 +3705,7 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
     if (wEl && wEl.classList.contains("t-photo")){
       const w = LAY().find(x => x.id === wEl.dataset.w); if (!w) return;
       if (rotOf(w) === "tap" && photoList(w).length > 1){ w.idx = (photoIdx(w) + 1) % photoList(w).length; render(); persist(); return; }
-      const cur = photoCur(w), src = safeImg(photos[cur.p]);
+      const cur = photoCur(w), src = photoSrc(cur.p);
       if (src){ $("viewerImg").src = src; $("viewerImg").classList.toggle("cut", !!cur.cut); $("viewer").classList.add("open"); }
     }
   });
@@ -3913,10 +4028,17 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
   // ---- automatic copy (phone app): after each change the copy file is refreshed in the chosen folder
   const HAS_BRIDGE = !!(window.AndroidBridge && AndroidBridge.autoSave);
   let autoTimer = null;
+  let lastAutoBody = "";
   function scheduleAutoBackup(){
     if (!HAS_BRIDGE) return;
     clearTimeout(autoTimer);
-    autoTimer = setTimeout(() => { try { AndroidBridge.autoSave(backupJSON()); } catch(e){} }, 4000);
+    autoTimer = setTimeout(() => {
+      try {
+        const j = backupJSON(), body = j.replace(/"created":"[^"]*",/, "");
+        if (body === lastAutoBody) return;             // nothing new → don't rewrite a file of several MB
+        AndroidBridge.autoSave(j); lastAutoBody = body;
+      } catch(e){}
+    }, 4000);
   }
   function autoLabel(){
     if (!HAS_BRIDGE){ $("bkAuto").hidden = true; $("bkCloudNote").hidden = !IN_CLAUDE; return; }
@@ -4003,7 +4125,7 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
     if (window.__homePage && window.__homePage()) return true;
     return false;
   };
-  loadLocal(); render(); initCloud(); backupReminder();
+  loadLocal(); render(); loadIDBPhotos(); initCloud(); backupReminder(); blobImgTest();
 })();
 </script>
 <script>

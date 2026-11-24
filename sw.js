@@ -1,5 +1,5 @@
-// Календарь — офлайн-работа. Версия: 20261124-221922
-const CACHE = "calendar-20261124-221922";
+// Календарь — офлайн-работа. Версия: 20261124-225542
+const CACHE = "calendar-20261124-225542";
 const FILES = ["./", "index.html", "manifest.webmanifest", "fonts/Manrope.ttf",
                "icons/apple-touch-icon.png", "icons/icon-192.png", "icons/icon-512.png"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES))); self.skipWaiting(); });
