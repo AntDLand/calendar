@@ -368,11 +368,11 @@
   .pdots-w i.on{width:12px;background:#fff}
   .motw{height:100%;position:relative;border-radius:var(--radius);overflow:hidden;background:#000;cursor:pointer}
   .motw video{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
-  .mv-snd{position:absolute;left:8px;bottom:8px;width:34px;height:34px;border-radius:50%;border:none;background:rgba(0,0,0,.55);color:#fff;font-size:16px;display:grid;place-items:center;cursor:pointer;z-index:2}
-  .w.w1 .mv-snd{width:28px;height:28px;font-size:13px;left:auto;right:5px;bottom:5px}
+  .mv-snd{position:absolute;left:8px;bottom:8px;width:34px;height:34px;border-radius:50%;border:none;background:rgba(0,0,0,.55);color:#fff;padding:6px;display:grid;place-items:center;cursor:pointer;z-index:2}
+  .mv-snd svg{width:100%;height:100%;display:block}
+  .w.w1 .mv-snd{width:28px;height:28px;padding:5px;left:auto;right:5px;bottom:5px}
   .editing .mv-snd{display:none}
   .mv-wave:not(.live) i{animation-play-state:paused}
-  .mv-badge{position:absolute;right:8px;bottom:8px;background:rgba(0,0,0,.55);color:#fff;font:800 12px ManropeLocal,Manrope,sans-serif;padding:4px 8px;border-radius:10px}
   .motw.empty{background:linear-gradient(135deg,#ff7a1a,#e5484d);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#fff;padding:10px;gap:4px}
   .motw.empty b{font-size:28px}
   .motw.empty span{font:800 15px ManropeLocal,Manrope,sans-serif;line-height:1.2}
@@ -398,7 +398,7 @@
   @keyframes fdwave{from{height:15%}to{height:100%}}
   .fd-hint{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom) + 60px);text-align:center;color:rgba(255,255,255,.7);font:700 12px ManropeLocal,Manrope,sans-serif;pointer-events:none;animation:fdhint 3s ease forwards}
   @keyframes fdhint{0%,70%{opacity:1}100%{opacity:0}}
-  .mp-edit{position:absolute;right:14px;top:calc(env(safe-area-inset-top) + 80px);width:42px;height:42px;border-radius:50%;border:none;background:rgba(255,255,255,.18);color:#fff;font-size:18px;font-weight:800;cursor:pointer}
+  .mp-edit-unused{position:absolute;right:14px;top:calc(env(safe-area-inset-top) + 80px);width:42px;height:42px;border-radius:50%;border:none;background:rgba(255,255,255,.18);color:#fff;font-size:18px;font-weight:800;cursor:pointer}
   .motw.songs{background:linear-gradient(160deg,#8b5cf6,#3e8bff);display:grid;place-items:center}
   .mv-wave{display:flex;gap:4px;align-items:flex-end;height:40%}
   .mv-wave i{width:6px;background:rgba(255,255,255,.85);border-radius:3px;animation:fdwave .9s ease-in-out infinite alternate}
@@ -1020,9 +1020,7 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
 <div class="viewer" id="viewer"><img id="viewerImg" alt=""></div>
 <div class="motiv" id="motiv">
   <div class="fd-list" id="fdList"></div>
-  <button class="mp-close" id="mpClose" aria-label="Закрыть">✕</button>
-  <button class="mp-edit" id="mpEdit" aria-label="Изменить список">✎</button>
-  <div class="fd-hint">Листай вверх ↑</div>
+  <div class="fd-hint">Листай вверх ↑ · свайп в сторону — выйти</div>
 </div>
 <div class="game stackg" id="stack">
   <canvas id="skCanvas"></canvas>
@@ -2840,7 +2838,7 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
   // own song: the file lives in IndexedDB on this device (too big for localStorage / the cloud)
   const SONG_DB = "sportcal-media";
   function songDB(){ return new Promise((ok, no) => { const r = indexedDB.open(SONG_DB, 1); r.onupgradeneeded = () => r.result.createObjectStore("files"); r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); }); }
-  async function songPut(v){ const db = await songDB(); return new Promise((ok, no) => { const t = db.transaction("files", "readwrite"); t.objectStore("files").put(v, "timer"); t.oncomplete = ok; t.onerror = () => no(t.error); }); }
+  async function songPut(v){ const db = await songDB(); return new Promise((ok, no) => { const t = db.transaction("files", "readwrite"); t.objectStore("files").put(v, "timer"); t.oncomplete = ok; t.onerror = () => no(t.error); t.onabort = () => no(t.error || new Error("abort")); }); }
   async function songGet(){ const db = await songDB(); return new Promise(ok => { const r = db.transaction("files").objectStore("files").get("timer"); r.onsuccess = () => ok(r.result || null); r.onerror = () => ok(null); }); }
   let song = null, songUrl = null;                       // {name, blob, dur}
   function songSet(v){ song = v; if (songUrl) URL.revokeObjectURL(songUrl); songUrl = v && v.blob ? URL.createObjectURL(v.blob) : null; }
@@ -2869,10 +2867,12 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
   const tmStopSong = () => { clearTimeout(tmStopT); if (tmAudio){ tmAudio.pause(); tmAudio = null; } };
   // ---------- «Мотивация»: a TikTok-style feed of the user's own videos and song fragments ----------
   // each clip: {id, k: "v"|"m", name, dur, s (start), l (length)}; the file sits in IndexedDB under "mi-<id>"
-  async function mediaPut(key, v){ const db = await songDB(); return new Promise((ok, no) => { const t = db.transaction("files", "readwrite"); t.objectStore("files").put(v, key); t.oncomplete = ok; t.onerror = () => no(t.error); }); }
+  async function mediaPut(key, v){ const db = await songDB(); return new Promise((ok, no) => { const t = db.transaction("files", "readwrite"); t.objectStore("files").put(v, key); t.oncomplete = ok; t.onerror = () => no(t.error); t.onabort = () => no(t.error || new Error("abort")); }); }
   async function mediaGet(key){ const db = await songDB(); return new Promise(ok => { const r = db.transaction("files").objectStore("files").get(key); r.onsuccess = () => ok(r.result || null); r.onerror = () => ok(null); }); }
   async function mediaDel(key){ try { const db = await songDB(); db.transaction("files", "readwrite").objectStore("files").delete(key); } catch(e){} }
   const NOPOSTER = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";      // empty poster: no grey «play» frame before the video starts
+  const ICO_MUTE = `<svg viewBox="0 0 44 44" aria-hidden="true"><path d="M7 17.5h5.5L22 9.5v25l-9.5-8H7a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2z" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M29 17l8 10M37 17l-8 10" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>`;
+  const ICO_SOUND = `<svg viewBox="0 0 44 44" aria-hidden="true"><path d="M7 17.5h5.5L22 9.5v25l-9.5-8H7a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2z" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M28 16.5a8 8 0 0 1 0 11M32.5 12a14 14 0 0 1 0 20" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>`;
   const MEDIA = {};                                   // key → {url} | "loading" | "none"
   function mediaUrl(key){
     const m = MEDIA[key];
@@ -2883,22 +2883,31 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
     }
     return m && m.url ? m.url : null;
   }
+  // in the Android app clips are plain files kept by Android itself (c.u), with a first-frame picture made by Android (c.t)
+  const NATIVE_MEDIA = !!(window.AndroidBridge && AndroidBridge.pickMedia);
+  const clipUrl = c => c ? (c.u || mediaUrl("mi-" + c.id)) : null;
+  function clipDrop(c){
+    mediaDel("mi-" + c.id); mediaDel("mt-" + c.id); mediaForget("mi-" + c.id); delete THUMB[c.id];
+    if (c.u && window.AndroidBridge && AndroidBridge.mediaDelete) try { AndroidBridge.mediaDelete(c.id); } catch(e){}
+  }
   // first frame of each video fragment, saved as a small picture → shown instantly instead of a black screen
   const THUMB = {};                                   // clip id → url | "loading"
   function thumbOf(c){
     if (!c || c.k !== "v") return NOPOSTER;
+    if (c.u) return c.t || NOPOSTER;
     const t = THUMB[c.id];
     if (t && t !== "loading" && t.s === c.s) return t.url;
     if (t === "loading") return (THUMB["old-" + c.id] || {}).url || NOPOSTER;
     THUMB[c.id] = "loading";
     (async () => {
       const saved = await mediaGet("mt-" + c.id).catch(() => null);
-      if (saved && saved.blob && saved.s === c.s){ THUMB[c.id] = {s: c.s, url: URL.createObjectURL(saved.blob)}; thumbsChanged(); return; }
+      // v2: older versions could save a black frame → those are made again
+      if (saved && saved.blob && saved.s === c.s && saved.v === 2){ THUMB[c.id] = {s: c.s, url: URL.createObjectURL(saved.blob)}; thumbsChanged(); return; }
       const url = MEDIA["mi-" + c.id] && MEDIA["mi-" + c.id].url ? MEDIA["mi-" + c.id].url : await mediaGet("mi-" + c.id).then(v => v && v.blob ? URL.createObjectURL(v.blob) : null).catch(() => null);
       if (!url){ delete THUMB[c.id]; return; }
       const blob = await thumbQueue(() => grabFrame(url, c.s));
-      if (!blob){ delete THUMB[c.id]; return; }
-      mediaPut("mt-" + c.id, {blob, s: c.s}).catch(() => {});
+      if (!blob){ THUMB[c.id] = {s: c.s, url: NOPOSTER}; return; }
+      mediaPut("mt-" + c.id, {blob, s: c.s, v: 2}).catch(() => {});
       THUMB[c.id] = {s: c.s, url: URL.createObjectURL(blob)}; thumbsChanged();
     })();
     return (THUMB["old-" + c.id] || {}).url || NOPOSTER;
@@ -2913,16 +2922,27 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
     return new Promise(ok => {
       const v = document.createElement("video"); let done = false;
       const fin = b => { if (done) return; done = true; clearTimeout(t); v.removeAttribute("src"); v.load(); ok(b); };
-      const t = setTimeout(() => fin(null), 8000);
+      const t = setTimeout(() => fin(null), 9000);
       v.muted = true; v.playsInline = true; v.preload = "auto";
-      v.addEventListener("loadeddata", () => { try { v.currentTime = Math.max(0.05, at + 0.05); } catch(e){ fin(null); } }, {once: true});
-      v.addEventListener("seeked", () => {
+      let tries = 0;
+      const snap = () => {
         try {
           const w = Math.min(480, v.videoWidth || 480), h = Math.round(w * (v.videoHeight || 270) / (v.videoWidth || 480));
           const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
-          cv.getContext("2d").drawImage(v, 0, 0, w, h);
+          const g = cv.getContext("2d"); g.drawImage(v, 0, 0, w, h);
+          // a blank (all-black) frame means the phone hasn't drawn it yet → let it play a bit and try again
+          const d = g.getImageData(0, 0, w, h).data; let lit = 0;
+          for (let i = 0; i < d.length; i += 4 * 97) if (d[i] + d[i + 1] + d[i + 2] > 36) lit++;
+          if (lit < 3 && tries++ < 4){ v.play().catch(() => {}); setTimeout(() => { v.pause(); snap(); }, 350); return; }
+          if (lit < 3){ fin(null); return; }
           cv.toBlob(b => fin(b), "image/jpeg", 0.72);
         } catch(e){ fin(null); }
+      };
+      v.addEventListener("loadeddata", () => { try { v.currentTime = Math.max(0.05, at + 0.05); } catch(e){ fin(null); } }, {once: true});
+      v.addEventListener("seeked", () => {
+        // wait until a frame is really on screen (Android draws it a moment later)
+        if (v.requestVideoFrameCallback){ v.play().catch(() => {}); v.requestVideoFrameCallback(() => { v.pause(); snap(); }); }
+        else setTimeout(snap, 120);
       }, {once: true});
       v.addEventListener("error", () => fin(null), {once: true});
       v.src = url;
@@ -2938,6 +2958,7 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
     }, 50);
   }
   function thumbRedo(c){                                // start of the fragment moved → make a new picture
+    if (c.u){ if (window.AndroidBridge && AndroidBridge.mediaThumb) try { AndroidBridge.mediaThumb(c.id, c.s || 0); } catch(e){} return; }
     const t = THUMB[c.id]; if (t && t !== "loading") THUMB["old-" + c.id] = t;
     delete THUMB[c.id]; thumbOf(c);
   }
@@ -2957,11 +2978,9 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
     if (!w.items){ motMigrate(w); }
     const it = motItems(w), nv = it.filter(x => x.k === "v").length, nm = it.length - nv;
     if (!it.length) return `<div class="motw empty"><b>🔥</b><span>${w.w === 1 && w.h === 1 ? "" : "Мотивация<br><small>нажми и добавь свои видео и песни</small>"}</span></div>`;
-    const firstV = it.find(x => x.k === "v"), url = firstV && mediaUrl("mi-" + firstV.id);
-    const count = `${nv ? `🎬 ${nv}` : ""}${nv && nm ? " · " : ""}${nm ? `🎵 ${nm}` : ""}`;
+    const firstV = it.find(x => x.k === "v"), url = firstV && clipUrl(firstV);
     return `<div class="motw${url ? "" : " songs"}">${url ? `<video class="mv-prev" poster="${thumbOf(firstV)}" src="${url}#t=${firstV.s}" muted playsinline autoplay loop preload="metadata" data-s="${firstV.s}" data-l="${firstV.l}" data-w="${w.id}"></video>` : `<div class="mv-wave${w.snd ? " live" : ""}"><i></i><i></i><i></i><i></i><i></i></div>`}
-      <button class="mv-snd" data-msnd="${w.id}" aria-label="${w.snd ? "Выключить звук" : "Включить звук"}">${w.snd ? "🔊" : "🔇"}</button>
-      ${w.w === 1 && w.h === 1 ? "" : `<div class="mv-badge">${count} ▶</div>`}</div>`;
+      <button class="mv-snd" data-msnd="${w.id}" aria-label="${w.snd ? "Выключить звук" : "Включить звук"}">${w.snd ? ICO_SOUND : ICO_MUTE}</button></div>`;
   }
   // sound is the user's choice per widget (🔇/🔊). It comes from a background player, so it keeps going
   // on every tab and page; the little preview on the board stays muted and just follows its timing.
@@ -2971,7 +2990,7 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
     const live = new Set();
     if (!mvQuiet()) allWidgets().forEach(w => {
       if (w.type !== "motiv" || !w.snd) return;
-      const it = motItems(w), c = it.find(x => x.k === "v") || it.find(x => x.k === "m"), url = c && mediaUrl("mi-" + c.id);
+      const it = motItems(w), c = it.find(x => x.k === "v") || it.find(x => x.k === "m"), url = clipUrl(c);
       if (!url) return;
       live.add(w.id);
       let b = MV_BG[w.id];
@@ -3021,7 +3040,7 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
   }
   function fdHydrate(){
     $("fdList").querySelectorAll(".fd-slide video").forEach(v => {
-      const i = +v.closest(".fd-slide").dataset.i, c = FD.list[i], url = mediaUrl("mi-" + c.id);
+      const i = +v.closest(".fd-slide").dataset.i, c = FD.list[i], url = clipUrl(c);
       if (url && v.dataset.src !== url && Math.abs(i - Math.max(0, FD.cur)) <= 1){ v.dataset.src = url; v.src = url + "#t=" + c.s; v.preload = i === Math.max(0, FD.cur) ? "auto" : "metadata"; }
     });
   }
@@ -3036,7 +3055,7 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
     // the clip you leave gives its decoder back (phones only have a few)
     $("fdList").querySelectorAll(".fd-slide video").forEach(v => { const j = +v.closest(".fd-slide").dataset.i; if (j !== i && v.src && Math.abs(j - i) > 1){ v.pause(); v.removeAttribute("src"); v.dataset.src = ""; v.load(); } });
     fdHydrate();
-    const slide = $("fdList").querySelector(`[data-i="${i}"]`), c = FD.list[i], url = mediaUrl("mi-" + c.id);
+    const slide = $("fdList").querySelector(`[data-i="${i}"]`), c = FD.list[i], url = clipUrl(c);
     $("fdList").querySelectorAll(".fd-slide").forEach(s => s.classList.toggle("on", s === slide));
     slide.classList.remove("paused");
     if (!url){ setTimeout(() => { if (FD.cur === i){ FD.cur = -1; fdActivate(i); } }, 300); return; }
@@ -3076,14 +3095,29 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
     setTimeout(() => { motivLoops(); document.querySelectorAll("video.mv-prev").forEach(v => v.play().catch(() => {})); }, 50); return true;
   }
   window.__closeMotiv = closeMotiv;
-  $("mpClose").onclick = closeMotiv;
-  $("mpEdit").onclick = () => { const id = FD.wid; closeMotiv(); openMotivCfg(id); };
+  // leave the feed with a sideways swipe (it slides away with your finger)
+  let fsx = null, fsy = null, fdx = 0, fsideways = false;
+  $("motiv").addEventListener("touchstart", e => { fsx = e.touches[0].clientX; fsy = e.touches[0].clientY; fdx = 0; fsideways = false; }, {passive: true});
+  $("motiv").addEventListener("touchmove", e => {
+    if (fsx === null) return;
+    const dx = e.touches[0].clientX - fsx, dy = e.touches[0].clientY - fsy;
+    if (!fsideways && Math.abs(dx) > 14 && Math.abs(dx) > Math.abs(dy) * 1.3){ fsideways = true; $("fdList").style.overflowY = "hidden"; }
+    if (fsideways){ fdx = dx; $("motiv").style.transform = `translateX(${dx}px)`; $("motiv").style.opacity = String(Math.max(0.3, 1 - Math.abs(dx) / innerWidth)); }
+  }, {passive: true});
+  $("motiv").addEventListener("touchend", () => {
+    const m = $("motiv"); $("fdList").style.overflowY = "";
+    if (fsideways && Math.abs(fdx) > Math.min(110, innerWidth * 0.25)){
+      m.style.transition = "transform .18s ease, opacity .18s ease"; m.style.transform = `translateX(${fdx > 0 ? innerWidth : -innerWidth}px)`; m.style.opacity = "0";
+      setTimeout(() => { closeMotiv(); m.style.transition = m.style.transform = m.style.opacity = ""; }, 180);
+    } else if (fsideways){ m.style.transition = "transform .18s ease, opacity .18s ease"; m.style.transform = ""; m.style.opacity = ""; setTimeout(() => m.style.transition = "", 200); }
+    fsx = null; fsideways = false;
+  });
   addEventListener("keydown", e => {
     if (!FD.open) return;
     if (e.key === "ArrowDown"){ e.preventDefault(); $("fdList").scrollBy({top: $("fdList").clientHeight, behavior: "smooth"}); }
     if (e.key === "ArrowUp"){ e.preventDefault(); $("fdList").scrollBy({top: -$("fdList").clientHeight, behavior: "smooth"}); }
     if (e.key === " "){ e.preventDefault(); const s = $("fdList").querySelector(".fd-slide.on"); if (s) s.click(); }
-    if (e.key === "Escape") closeMotiv();
+    if (e.key === "Escape" || e.key === "ArrowLeft" || e.key === "ArrowRight") closeMotiv();
   });
 
   function motLearnDur(id, d){
@@ -3110,7 +3144,7 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
       $("mcRange").max = Math.max(0, dur - 1); $("mcRange").value = Math.min(c.s, dur - 1);
       $("mcLen").innerHTML = [5, 10, 15, 30, 60].filter(n => n < dur + 5).map(n => `<button data-len="${n}" class="${n === c.l ? "on" : ""}">${n} с</button>`).join("") +
         (dur > 5 ? `<button data-len="${dur}" class="${c.l === dur ? "on" : ""}">Целиком</button>` : "");
-      const pv = $("mcPrev"), url = mediaUrl("mi-" + c.id);
+      const pv = $("mcPrev"), url = clipUrl(c);
       pv.hidden = c.k !== "v";
       if (c.k === "v") pv.poster = thumbOf(c);
       if (c.k === "v" && url && pv.dataset.src !== url){ pv.src = url; pv.dataset.src = url; pv.onloadedmetadata = () => { if (!c.dur && isFinite(pv.duration)) motLearnDur(c.id, pv.duration); try { pv.currentTime = c.s + 0.05; } catch(e){} }; }
@@ -3119,7 +3153,7 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
   }
   function mcTime(){ const c = motItems(motW()).find(x => x.id === motEdit); if (c) $("mcETime").textContent = `${mmss(c.s)} → ${mmss(Math.min(c.dur || c.s + c.l, c.s + c.l))}`; }
   function mcPreview(sec){
-    const c = motItems(motW()).find(x => x.id === motEdit); if (!c) return; const url = mediaUrl("mi-" + c.id); if (!url) return;
+    const c = motItems(motW()).find(x => x.id === motEdit); if (!c) return; const url = clipUrl(c); if (!url) return;
     tmStopSong();
     if (c.k === "v"){ const pv = $("mcPrev"); try { pv.currentTime = c.s; } catch(e){} pv.muted = false; pv.play().catch(() => {}); clearTimeout(tmStopT); tmStopT = setTimeout(() => pv.pause(), (sec || c.l) * 1000); }
     else { const a = tmAudio = new Audio(url); a.addEventListener("loadedmetadata", () => { try { a.currentTime = c.s; } catch(e){} a.play().catch(() => {}); }, {once: true}); clearTimeout(tmStopT); tmStopT = setTimeout(() => a.pause(), (sec || c.l) * 1000); }
@@ -3127,7 +3161,7 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
   $("mcList").addEventListener("click", async e => {
     const del = e.target.closest("[data-cdel]"), w = motW(); if (!w) return;
     if (del){
-      const id = del.dataset.cdel; w.items = motItems(w).filter(x => x.id !== id); mediaDel("mi-" + id); mediaDel("mt-" + id); mediaForget("mi-" + id); delete THUMB[id];
+      const id = del.dataset.cdel, gone = motItems(w).find(x => x.id === id); w.items = motItems(w).filter(x => x.id !== id); if (gone) clipDrop(gone);
       if (motEdit === id) motEdit = null; persist(); renderMotivCfg(); render(); return;
     }
     const row = e.target.closest("[data-cid]"); if (!row) return;
@@ -3139,8 +3173,30 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
   $("mcLen").onclick = e => { const b = e.target.closest("[data-len]"), c = motItems(motW()).find(x => x.id === motEdit); if (!b || !c) return; c.l = +b.dataset.len; persist(); renderMotivCfg(); };
   $("mcPlayOne").onclick = () => mcPreview();
   $("mcShuffle").onclick = () => { const w = motW(); if (!w) return; w.shuffle = w.shuffle === false; persist(); renderMotivCfg(); };
-  $("mcAddV").onclick = () => $("mcVIn").click();
-  $("mcAddM").onclick = () => $("mcMIn").click();
+  $("mcAddV").onclick = () => NATIVE_MEDIA ? nativePick("v") : $("mcVIn").click();
+  $("mcAddM").onclick = () => NATIVE_MEDIA ? nativePick("m") : $("mcMIn").click();
+  // Android app: Android copies the files into the app's own storage and answers through __mediaPicked
+  let pickFor = null;
+  function nativePick(k){ pickFor = motId; try { AndroidBridge.pickMedia(k); } catch(e){ $(k === "v" ? "mcVIn" : "mcMIn").click(); } }
+  window.__mediaPicking = n => toast(n > 1 ? `Добавляю ${n} файла…` : "Добавляю…");
+  window.__mediaPicked = (k, json) => {
+    let list = []; try { list = JSON.parse(json) || []; } catch(e){}
+    const w = allWidgets().find(x => x.id === pickFor) || motW(); if (!w || !list.length) return;
+    let added = 0; const bad = [];
+    for (const r of list){
+      if (!r || r.error || !r.url){ bad.push(r && r.error || "файл"); continue; }
+      const dur = +r.dur || 0;
+      w.items = motItems(w).concat({id: r.id, k, name: String(r.name || "").slice(0, 60), dur, s: 0, l: dur ? Math.min(15, Math.max(1, Math.floor(dur))) : 15, u: r.url, t: r.thumb || ""});
+      added++;
+    }
+    if (added){ persist(); renderMotivCfg(); render(); }
+    toast(added ? `Добавлено: ${added} ${k === "v" ? "🎬" : "🎵"}${bad.length ? ` · не вышло: ${bad.length}` : " — нажми на любое, чтобы выбрать кусок"}`
+                : `Не получилось добавить «${String(bad[0] || "").slice(0, 24)}»`);
+  };
+  window.__mediaThumb = (id, url) => {
+    const c = allWidgets().flatMap(x => x.type === "motiv" ? motItems(x) : []).find(x => x.id === id);
+    if (c && url){ c.t = url; persist(); render(); if (motEdit === id) renderMotivCfg(); if (FD.open) fdHydrate(); }
+  };
   async function motivAdd(files, k){
     const w = motW(); if (!w) return;
     let added = 0;
@@ -3510,7 +3566,7 @@ if (window.AndroidBridge && AndroidBridge.vibrate){
       if (act === "goal"){ openGoal(w.id); return; }
       if (act === "lastcfg"){ openLastCfg(w.id); return; }
       if (act === "motcfg"){ openMotivCfg(w.id); return; }
-      else if (act === "del"){ LAY().splice(i,1); if (w.type === "photo") photoIds(w).forEach(pid => deletePhoto(pid)); if (w.type === "motiv"){ ["mv-", "mm-"].forEach(k => mediaDel(k + w.id)); motItems(w).forEach(c => { mediaDel("mi-" + c.id); mediaDel("mt-" + c.id); mediaForget("mi-" + c.id); }); } }
+      else if (act === "del"){ LAY().splice(i,1); if (w.type === "photo") photoIds(w).forEach(pid => deletePhoto(pid)); if (w.type === "motiv"){ ["mv-", "mm-"].forEach(k => mediaDel(k + w.id)); motItems(w).forEach(clipDrop); } }
       render(); persist(); return;
     }
     if (editing || Date.now() < suppressClickUntil) return;
